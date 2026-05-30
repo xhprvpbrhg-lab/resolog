@@ -1,0 +1,2356 @@
+<!DOCTYPE html>
+<html lang="ja" id="html-root">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resolog</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Resolog">
+  <link rel="apple-touch-icon" href="icon.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #181D36; --primary-lt: #252C4A;
+      --accent: #C4A87A; --accent-lt: #D4B88A;
+      --bg: #F5F4F0; --card: #FFFFFF; --border: #DDD9D0;
+      --text: #2E2E2E; --muted: #888880;
+      --success: #27AE60; --danger: #C0392B; --hl: #1565C0;
+      --r: 8px; --shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header { background: var(--primary); color: #fff; padding: 14px 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 3px 12px rgba(0,0,0,0.25); }
+    .header-inner { max-width: 860px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    header h1 { font-size: 20px; font-weight: 300; letter-spacing: .1em; white-space: nowrap; font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif; font-style: italic; color: var(--accent-lt); }
+    .nav-wrap { display: flex; align-items: center; gap: 8px; }
+    .nav-tabs { display: flex; gap: 3px; background: rgba(255,255,255,0.12); padding: 4px; border-radius: 10px; }
+    .nav-tab { background: none; border: none; color: rgba(255,255,255,0.65); padding: 6px 13px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; transition: all .2s; white-space: nowrap; }
+    .nav-tab.active { background: #fff; color: var(--primary); }
+    .nav-tab:hover:not(.active) { color: #fff; }
+    .record-count { background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 20px; margin-left: 4px; display: none; }
+    .lang-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 6px; cursor: pointer; font-family: inherit; letter-spacing: .06em; transition: background .2s; white-space: nowrap; }
+    .lang-btn:hover { background: rgba(255,255,255,0.28); }
+
+    main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 20px; margin-bottom: 16px; }
+    .card-title { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .form-row { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group + .form-group { margin-top: 14px; }
+    .form-group label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 13px; border: 1px solid var(--border); border-radius: var(--r);
+      font-size: 15px; font-family: inherit; color: var(--text); background: #fff;
+      transition: border-color .2s, box-shadow .2s; -webkit-appearance: none;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,168,122,.18); }
+    .form-group textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+    select { cursor: pointer; }
+
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+    .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .checkbox-row label { font-size: 14px; font-weight: 600; cursor: pointer; }
+
+    .scenes-card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; }
+    .scene-tab-bar { display: flex; overflow-x: auto; background: var(--primary-lt); scrollbar-width: none; }
+    .scene-tab-bar::-webkit-scrollbar { display: none; }
+    .scene-tab-btn { background: none; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,.6); padding: 12px 15px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; white-space: nowrap; transition: all .2s; }
+    .scene-tab-btn.active { color: #fff; border-bottom-color: var(--accent-lt); background: rgba(255,255,255,.07); }
+    .scene-tab-btn:hover:not(.active) { color: #fff; }
+    .scene-content { display: none; padding: 18px 20px; }
+    .scene-content.active { display: block; }
+
+    .scene-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .prog-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s ease; }
+    .prog-text { font-size: 12px; color: var(--muted); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    .checklist-item { display: flex; align-items: flex-start; gap: 11px; cursor: pointer; user-select: none; }
+    .checklist-item input[type="checkbox"] { width: 17px; height: 17px; margin-top: 2px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+    .item-label { font-size: 14px; line-height: 1.45; flex: 1; transition: color .2s; }
+    .checklist-item.checked .item-label { color: var(--muted); text-decoration: line-through; }
+    .item-hl-dot { font-size: 11px; margin-right: 4px; display: none; }
+
+    .item-wrapper { padding: 8px 0; border-bottom: 1px solid #F0EDE8; transition: opacity .2s; }
+    .item-wrapper:last-child { border-bottom: none; }
+    .item-wrapper .checklist-item { border-bottom: none; padding: 0; }
+    .item-wrapper.item-hl .item-hl-dot { display: inline; }
+    .item-wrapper.item-gray { opacity: 0.32; }
+
+    .item-memo { display: block; width: 100%; margin-top: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; color: var(--text); background: #FAFAF7; }
+    .item-memo:focus { outline: none; border-color: var(--accent); }
+    .climate-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+    .climate-input { width: 68px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; color: var(--text); background: #FAFAF7; }
+    .climate-input:focus { outline: none; border-color: var(--accent); }
+
+    .group-section { margin-bottom: 2px; }
+    .group-header {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: .09em;
+      text-transform: uppercase; padding: 10px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px;
+      transition: color .2s, opacity .2s;
+    }
+    .group-header.gh-hl { color: var(--hl); }
+    .group-header.gh-gray { color: var(--muted); opacity: 0.45; }
+    .gh-dot { font-size: 11px; margin-left: 4px; display: none; }
+    .group-header.gh-hl .gh-dot { display: inline; }
+    .gh-count { font-size: 11px; font-weight: 700; color: inherit; }
+
+    .btn-primary { width: 100%; background: var(--accent); color: #fff; border: none; padding: 15px; border-radius: var(--r); font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: .06em; transition: background .2s, transform .1s; }
+    .btn-primary:hover { background: var(--accent-lt); }
+    .btn-primary:active { transform: scale(.98); }
+
+    .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .search-bar { position: relative; margin-bottom: 12px; }
+    .search-bar svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+    .search-bar input { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid var(--border); border-radius: var(--r); font-size: 14px; font-family: inherit; color: var(--text); background: var(--card); transition: border-color .2s, box-shadow .2s; -webkit-appearance: none; }
+    .search-bar input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,168,122,.18); }
+    .search-bar input::placeholder { color: var(--muted); }
+    .list-header h2 { font-size: 16px; font-weight: 700; color: var(--primary); }
+    .filter-select { font-size: 13px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); font-family: inherit; color: var(--text); cursor: pointer; }
+    .record-card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); border: 1px solid var(--border); padding: 16px 18px; margin-bottom: 10px; cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .1s; display: flex; align-items: center; gap: 16px; }
+    .record-card:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(196,168,122,.22); }
+    .record-card:active { transform: scale(.99); }
+    .date-badge { background: var(--primary); color: #fff; border-radius: 7px; padding: 8px 10px; text-align: center; min-width: 58px; flex-shrink: 0; }
+    .date-badge .ym { font-size: 10px; opacity: .7; }
+    .date-badge .dd { font-size: 24px; font-weight: 800; line-height: 1.1; }
+    .record-info { flex: 1; min-width: 0; }
+    .record-title { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .record-meta { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .completion-badge { flex-shrink: 0; text-align: right; }
+    .completion-pct { font-size: 20px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .completion-lbl { font-size: 10px; color: var(--muted); }
+    .empty-state { text-align: center; padding: 70px 20px; color: var(--muted); }
+    .empty-state h3 { font-size: 17px; margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; }
+
+    .top-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .btn-ghost { background: none; border: 1px solid var(--border); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; color: var(--text); transition: all .2s; }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; transition: all .2s; }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+
+    .detail-header { background: var(--primary); color: #fff; padding: 20px 22px; border-radius: var(--r); margin-bottom: 16px; }
+    .detail-header h2 { font-size: 18px; margin-bottom: 8px; }
+    .detail-meta { font-size: 13px; opacity: .8; display: flex; flex-wrap: wrap; gap: 14px; }
+    .detail-completion { margin-top: 14px; display: flex; align-items: center; gap: 10px; }
+    .detail-prog-bar { flex: 1; height: 8px; background: rgba(255,255,255,.25); border-radius: 4px; overflow: hidden; }
+    .detail-prog-fill { height: 100%; background: var(--accent-lt); border-radius: 4px; }
+    .detail-pct { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .detail-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.2); }
+    @media (max-width: 400px) { .detail-info-grid { grid-template-columns: 1fr; } }
+    .info-item .info-label { font-size: 10px; opacity: .6; text-transform: uppercase; letter-spacing: .07em; }
+    .info-item .info-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+
+    .detail-scene { margin-bottom: 4px; }
+    .detail-scene-hd { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; padding: 8px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+    .detail-group-hd { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; padding: 8px 0 4px; border-bottom: 1px solid var(--border); margin: 6px 0 2px; }
+    .detail-group-hd.hl { color: var(--hl); }
+    .detail-item { display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-bottom: 1px solid #F0EDE8; font-size: 13.5px; }
+    .detail-item:last-child { border-bottom: none; }
+    .check-dot { width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+    .check-dot.yes { background: var(--success); color: #fff; }
+    .check-dot.no  { background: #E8E5E0; color: #E8E5E0; }
+    .detail-item.unchecked { color: var(--muted); }
+    .detail-memo    { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .detail-climate { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .tuning-form { padding-top: 4px; }
+    .tuning-field { padding: 12px 0; border-bottom: 1px solid #F0EDE8; }
+    .tuning-field:last-child { border-bottom: none; }
+    .tf-label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .04em; margin-bottom: 8px; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 6px; }
+    .btn-group input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+    .btn-group label { display: inline-block; padding: 7px 16px; border: 1.5px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all .15s; background: var(--bg); color: var(--text); user-select: none; }
+    .btn-group input[type="radio"]:checked + label { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+    .piano-type-group label { padding: 10px 22px; font-size: 15px; font-weight: 700; }
+    .custom-pitch-input { display: block; margin-top: 10px; width: 140px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 15px; font-family: inherit; color: var(--text); background: #fff; }
+    .custom-pitch-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139,115,85,.15); }
+    .tuning-form input[type="text"] { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 14px; font-family: inherit; color: var(--text); background: #fff; transition: border-color .2s, box-shadow .2s; }
+    .tuning-form input[type="text"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139,115,85,.15); }
+    .tuning-summary-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid #F0EDE8; font-size: 13.5px; align-items: baseline; }
+    .tuning-summary-row:last-child { border-bottom: none; }
+    .ts-label { flex-shrink: 0; width: 160px; font-weight: 600; color: var(--muted); font-size: 13px; }
+    .ts-value { flex: 1; }
+    .memo-box { background: #FAFAF7; border: 1px solid var(--border); border-radius: 7px; padding: 14px 16px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+
+    .mm-grid { display: grid; grid-template-columns: 2.6em 1fr 1fr 1fr; gap: 3px 4px; margin-top: 7px; }
+    .mm-col-hd { font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; padding-bottom: 1px; }
+    .mm-row-lb { font-size: 11px; color: var(--muted); display: flex; align-items: center; }
+    .mm-input { width: 100%; padding: 5px 2px; border: 1px solid var(--border); border-radius: 5px; font-size: 14px; font-family: inherit; text-align: center; color: var(--text); background: #FAFAF7; -webkit-appearance: none; appearance: none; }
+    .mm-input:focus { outline: none; border-color: var(--accent); }
+    .mm-detail-tbl { font-size: 12px; border-collapse: collapse; margin-top: 4px; }
+    .mm-detail-tbl th, .mm-detail-tbl td { padding: 2px 8px; text-align: center; }
+    .mm-detail-tbl th:first-child, .mm-detail-tbl td:first-child { text-align: left; padding-left: 0; color: var(--muted); font-weight: 400; }
+    .mm-detail-tbl td:not(:first-child) { font-weight: 600; }
+
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--primary); color: #fff; padding: 11px 24px; border-radius: 24px; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.22); transition: transform .3s cubic-bezier(.34,1.56,.64,1); z-index: 500; pointer-events: none; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .eval-section-hd { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .slider-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
+    .slider-col-hd { font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; padding: 0 6px 10px; }
+    .slider-item-label { font-size: 13px; font-weight: 600; padding: 8px 10px 8px 0; vertical-align: middle; line-height: 1.35; }
+    .slider-hint { display: block; font-size: 10px; color: var(--muted); font-weight: 400; margin-top: 3px; }
+    .slider-cell { text-align: center; padding: 4px 6px; vertical-align: middle; }
+    .slider-val { font-size: 20px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; display: block; margin-bottom: 2px; }
+    .slider-table input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+    .eval-memo-input { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; color: var(--text); background: #FAFAF7; }
+    .eval-memo-input:focus { outline: none; border-color: var(--accent); }
+    .eval-memo-row td { padding: 0 4px 10px; }
+    .eval-fb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media (max-width: 500px) { .eval-fb-grid { grid-template-columns: 1fr; } }
+    .eval-fb-grid textarea { min-height: 70px; resize: vertical; }
+    .detail-eval-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+    .detail-eval-table th { font-size: 11px; color: var(--muted); font-weight: 700; padding: 4px 8px 8px; text-align: center; }
+    .detail-eval-table th:first-child { text-align: left; }
+    .detail-eval-table td { padding: 6px 8px; border-bottom: 1px solid #F0EDE8; vertical-align: middle; }
+    .detail-eval-table td:not(:first-child) { text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; }
+    .det-ev-diff.up { color: var(--success); }
+    .det-ev-diff.down { color: var(--danger); }
+
+    @media print {
+      header, .top-actions, .btn-primary, .nav-wrap { display: none !important; }
+      body { background: #fff; }
+      main { padding: 0; }
+      .card, .scenes-card, .detail-header { box-shadow: none !important; }
+      .view { display: block !important; }
+      #view-new, #view-list { display: none !important; }
+    }
+
+    /* ---- Obsidian toggle ---- */
+    .ob-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; padding: 7px 13px; border: 1px solid var(--border); border-radius: var(--r); background: none; transition: border-color .2s, color .2s; user-select: none; }
+    .ob-toggle:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+    .ob-toggle input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; }
+
+    /* ---- Tags card ---- */
+    .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .tag-chip { display: inline-flex; align-items: center; gap: 3px; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); color: var(--muted); background: #fff; user-select: none; transition: all .15s; }
+    .tag-chip:hover { border-color: var(--accent); }
+    .tag-chip.tc-active { border-color: var(--accent); color: var(--accent); background: rgba(196,168,122,.1); }
+    .tag-chip.tc-custom { border-style: dashed; }
+    .tag-input-row { display: flex; gap: 8px; }
+    .tag-input-row input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 13px; font-family: inherit; color: var(--text); background: #fff; }
+    .tag-input-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(196,168,122,.18); }
+    .tag-yaml-preview { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 12px; background: #F9F8F5; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-top: 12px; white-space: pre; color: var(--text); }
+
+    /* ---- Related Notes ---- */
+    .rn-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .rn-note { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #F0EDE8; }
+    .rn-note:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .rn-note-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .rn-note-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .rn-note-path { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: 'SFMono-Regular', Consolas, monospace; }
+    .rn-preview { background: #F9F8F5; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 11px; white-space: pre; line-height: 1.5; color: var(--text); max-height: 180px; overflow: auto; }
+
+    /* ---- Detail view — redesigned ---- */
+    .d-top-nav { margin-bottom: 14px; }
+    .d-back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; color: var(--muted); padding: 4px 0; transition: color .2s; }
+    .d-back-btn:hover { color: var(--text); }
+    .d-back-btn svg { flex-shrink: 0; }
+
+    .d-hero { background: linear-gradient(148deg, var(--primary) 0%, #1f2645 100%); border-radius: 16px; padding: 26px 24px 22px; margin-bottom: 12px; box-shadow: 0 8px 28px rgba(24,29,54,.30); color: #fff; position: relative; overflow: hidden; }
+    .d-hero::after { content:''; position:absolute; bottom:-50px; right:-50px; width:180px; height:180px; background:var(--accent); opacity:.05; border-radius:50%; pointer-events:none; }
+    .d-hero-eyebrow { font-size: 11px; font-weight: 700; color: var(--accent-lt); letter-spacing: .13em; text-transform: uppercase; margin-bottom: 7px; }
+    .d-hero-name { font-size: 22px; font-weight: 300; line-height: 1.3; font-family: 'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif; font-style: italic; color: #fff; margin-bottom: 14px; word-break: break-word; }
+    .d-hero-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .d-badge { background: rgba(255,255,255,.11); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.88); font-size: 11px; font-weight: 700; padding: 4px 11px; border-radius: 20px; letter-spacing: .03em; }
+    .d-badge-gold { background: rgba(196,168,122,.2); border-color: rgba(196,168,122,.45); color: var(--accent-lt); }
+    .d-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; padding: 14px 0 16px; border-top: 1px solid rgba(255,255,255,.13); }
+    @media (max-width: 400px) { .d-hero-grid { grid-template-columns: 1fr; } }
+    .d-hgi-label { font-size: 10px; color: rgba(255,255,255,.46); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 2px; }
+    .d-hgi-value { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.9); }
+    .d-hero-prog { display: flex; align-items: center; gap: 12px; }
+    .d-hero-prog-track { flex: 1; height: 5px; background: rgba(255,255,255,.17); border-radius: 3px; overflow: hidden; }
+    .d-hero-prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-lt)); border-radius: 3px; transition: width .3s; }
+    .d-hero-prog-pct { font-size: 15px; font-weight: 800; color: var(--accent-lt); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .d-hero-prog-done { font-size: 11px; font-weight: 600; opacity: .65; margin-left: 3px; }
+
+    .d-action-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; position: relative; align-items: flex-start; }
+    .d-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 17px; border-radius: 10px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; letter-spacing: .02em; transition: all .17s; white-space: nowrap; border: 2px solid transparent; line-height: 1; }
+    .d-btn svg { flex-shrink: 0; }
+    .d-btn-primary { background: var(--primary); color: var(--accent-lt); border-color: var(--primary); }
+    .d-btn-primary:hover { background: var(--primary-lt); border-color: var(--primary-lt); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(24,29,54,.26); }
+    .d-btn-secondary { background: var(--card); color: var(--text); border-color: var(--border); }
+    .d-btn-secondary:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(196,168,122,.18); }
+    .d-btn-ghost { background: none; color: var(--muted); border-color: var(--border); }
+    .d-btn-ghost:hover, .d-btn-ghost.open { border-color: var(--text); color: var(--text); }
+
+    .d-more-wrap { position: relative; }
+    .d-more-menu { display: none; position: absolute; top: calc(100% + 6px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.15); min-width: 196px; z-index: 300; overflow: hidden; }
+    .d-more-menu.open { display: block; }
+    .d-more-item { display: flex; align-items: center; gap: 10px; padding: 13px 16px; font-size: 14px; font-weight: 500; font-family: inherit; color: var(--text); background: none; border: none; cursor: pointer; width: 100%; text-align: left; transition: background .13s; border-top: 1px solid var(--border); }
+    .d-more-item:first-child { border-top: none; }
+    .d-more-item:hover { background: var(--bg); }
+    .d-more-item svg { flex-shrink: 0; color: var(--muted); }
+    .d-more-danger { color: var(--danger); }
+    .d-more-danger:hover { background: #FDF0EF; }
+    .d-more-danger svg { color: var(--danger); }
+    .d-ob-row { justify-content: space-between; }
+    .d-ob-check { margin-left: auto !important; accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+
+    /* ---- Summary Builder ---- */
+    .sb-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .sb-toolbar-info { font-size: 12px; color: var(--muted); }
+    .sb-list { display: flex; flex-direction: column; }
+    .sb-item { display: grid; grid-template-columns: 20px 1fr 52px; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #F0EDE8; }
+    .sb-item:last-child { border-bottom: none; }
+    .sb-item.sb-excluded { opacity: 0.38; }
+    .sb-include { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .sb-text { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; font-family: inherit; color: var(--text); background: #fff; }
+    .sb-text:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(196,168,122,.18); }
+    .sb-btns { display: flex; flex-direction: column; gap: 2px; }
+    .sb-move { background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 11px; padding: 2px 6px; color: var(--muted); line-height: 1.5; }
+    .sb-move:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .sb-move:disabled { opacity: 0.2; cursor: default; }
+    .sb-preview-area { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .sb-preview-label { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+    .sb-preview { background: #F9F8F5; border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 12px; white-space: pre-wrap; line-height: 1.6; color: var(--text); max-height: 220px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <h1>Resolog</h1>
+    <div class="nav-wrap">
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-view="new" data-i18n="navNew">新規記録</button>
+        <button class="nav-tab" data-view="list"><span data-i18n="navList">記録一覧</span><span class="record-count" id="nav-count"></span></button>
+      </div>
+      <button class="lang-btn" id="lang-btn" title="Switch language">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="view active" id="view-new">
+    <div class="card">
+      <div class="card-title" data-i18n="cardBasic">基本情報</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="f-date" data-i18n="lblDate">日付</label>
+          <input type="date" id="f-date">
+        </div>
+        <div class="form-group">
+          <label data-i18n="lblType">ピアノ種別</label>
+          <div class="btn-group piano-type-group">
+            <input type="radio" id="pt-grand"   name="piano-type" value="grand">
+            <label for="pt-grand" data-i18n="ptGrand">GP（グランド）</label>
+            <input type="radio" id="pt-upright" name="piano-type" value="upright">
+            <label for="pt-upright" data-i18n="ptUpright">UP（アップライト）</label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <div class="form-group">
+          <label for="f-maker" data-i18n="lblMaker">メーカー</label>
+          <input type="text" id="f-maker" placeholder="例：YAMAHA、KAWAI、Steinway" data-i18n-ph="phMaker">
+        </div>
+        <div class="form-group">
+          <label for="f-model" data-i18n="lblModel">モデル名</label>
+          <input type="text" id="f-model" placeholder="例：CFX、S6X、CFIII" data-i18n-ph="phModel">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <div class="form-group">
+          <label for="f-serial" data-i18n="lblSerial">製造番号</label>
+          <input type="text" id="f-serial" placeholder="例：1234567" data-i18n-ph="phSerial">
+        </div>
+        <div class="form-group">
+          <label for="f-last-tuned" data-i18n="lblLastTuned">前回調律日</label>
+          <input type="date" id="f-last-tuned">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <div class="form-group">
+          <label for="f-work-type" data-i18n="lblWorkType">作業種別</label>
+          <select id="f-work-type">
+            <option value="" data-i18n="wtNone">選択してください</option>
+            <option value="concert" data-i18n="wtConcert">コンサート調律</option>
+            <option value="maintenance" data-i18n="wtMaintenance">保守点検</option>
+            <option value="pre-shipment" data-i18n="wtPreShipment">出荷前</option>
+            <option value="recording" data-i18n="wtRecording">録音</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="f-customer" data-i18n="lblCustomer">顧客 / アーティスト</label>
+          <input type="text" id="f-customer" placeholder="例：山田 花子、〇〇カルテット" data-i18n-ph="phCustomer">
+          <select id="f-client-type" style="margin-top:6px;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;color:var(--muted);background:#fff;cursor:pointer;">
+            <option value="artist" data-i18n="ctArtist">アーティスト</option>
+            <option value="corporate" data-i18n="ctCorporate">企業 / 団体</option>
+            <option value="private" data-i18n="ctPrivate">一般顧客</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <div class="form-group">
+          <label for="f-location" data-i18n="lblLocation">会場名</label>
+          <input type="text" id="f-location" placeholder="例：〇〇ホール、△△文化会館" data-i18n-ph="phLocation">
+        </div>
+        <div class="form-group">
+          <label for="f-staff" data-i18n="lblStaff">スタッフ名</label>
+          <input type="text" id="f-staff" placeholder="例：Shinya Maeda">
+        </div>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="f-disklavier">
+        <label for="f-disklavier" data-i18n="lblDisklavier">Disklavier 搭載</label>
+      </div>
+    </div>
+
+    <div class="scenes-card">
+      <div class="scene-tab-bar" id="scene-tab-bar"></div>
+      <div id="scene-panels"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" data-i18n="cardEval">評価・フィードバック</div>
+      <div class="eval-section-hd" data-i18n="evalSelfHd">自分の評価（作業前 → 作業後）</div>
+      <table class="slider-table">
+        <colgroup><col style="width:46%"><col style="width:27%"><col style="width:27%"></colgroup>
+        <thead><tr><th></th><th class="slider-col-hd" data-i18n="evalBefore">作業前</th><th class="slider-col-hd" data-i18n="evalAfter">作業後</th></tr></thead>
+        <tbody>
+          <tr><td class="slider-item-label" data-sl-key="touch">タッチ<span class="slider-hint">重い → 軽い</span></td><td class="slider-cell"><span class="slider-val" id="sv-touch-before">3</span><input type="range" min="1" max="5" value="3" id="sl-touch-before"></td><td class="slider-cell"><span class="slider-val" id="sv-touch-after">3</span><input type="range" min="1" max="5" value="3" id="sl-touch-after"></td></tr>
+          <tr class="eval-memo-row"><td colspan="3"><input type="text" class="eval-memo-input" id="em-touch" placeholder="変化の要因・作業内容…" data-i18n-ph="phEvalMemo"></td></tr>
+          <tr><td class="slider-item-label" data-sl-key="repetition">連打性<span class="slider-hint">低い → 高い</span></td><td class="slider-cell"><span class="slider-val" id="sv-repetition-before">3</span><input type="range" min="1" max="5" value="3" id="sl-repetition-before"></td><td class="slider-cell"><span class="slider-val" id="sv-repetition-after">3</span><input type="range" min="1" max="5" value="3" id="sl-repetition-after"></td></tr>
+          <tr class="eval-memo-row"><td colspan="3"><input type="text" class="eval-memo-input" id="em-repetition" placeholder="変化の要因・作業内容…" data-i18n-ph="phEvalMemo"></td></tr>
+          <tr><td class="slider-item-label" data-sl-key="volume">音量<span class="slider-hint">小 → 大</span></td><td class="slider-cell"><span class="slider-val" id="sv-volume-before">3</span><input type="range" min="1" max="5" value="3" id="sl-volume-before"></td><td class="slider-cell"><span class="slider-val" id="sv-volume-after">3</span><input type="range" min="1" max="5" value="3" id="sl-volume-after"></td></tr>
+          <tr class="eval-memo-row"><td colspan="3"><input type="text" class="eval-memo-input" id="em-volume" placeholder="変化の要因・作業内容…" data-i18n-ph="phEvalMemo"></td></tr>
+          <tr><td class="slider-item-label" data-sl-key="tone_color">音色<span class="slider-hint">暗い → 明るい</span></td><td class="slider-cell"><span class="slider-val" id="sv-tone_color-before">3</span><input type="range" min="1" max="5" value="3" id="sl-tone_color-before"></td><td class="slider-cell"><span class="slider-val" id="sv-tone_color-after">3</span><input type="range" min="1" max="5" value="3" id="sl-tone_color-after"></td></tr>
+          <tr class="eval-memo-row"><td colspan="3"><input type="text" class="eval-memo-input" id="em-tone_color" placeholder="変化の要因・作業内容…" data-i18n-ph="phEvalMemo"></td></tr>
+          <tr><td class="slider-item-label" data-sl-key="intonation">発音<span class="slider-hint">閉じる → 開く</span></td><td class="slider-cell"><span class="slider-val" id="sv-intonation-before">3</span><input type="range" min="1" max="5" value="3" id="sl-intonation-before"></td><td class="slider-cell"><span class="slider-val" id="sv-intonation-after">3</span><input type="range" min="1" max="5" value="3" id="sl-intonation-after"></td></tr>
+          <tr class="eval-memo-row"><td colspan="3"><input type="text" class="eval-memo-input" id="em-intonation" placeholder="変化の要因・作業内容…" data-i18n-ph="phEvalMemo"></td></tr>
+
+          <tr><td class="slider-item-label" data-sl-key="dynamics_curve">音色変化<span class="slider-hint">直線 → 曲線</span></td><td class="slider-cell"><span class="slider-val" id="sv-dynamics_curve-before">3</span><input type="range" min="1" max="5" value="3" id="sl-dynamics_curve-before"></td><td class="slider-cell"><span class="slider-val" id="sv-dynamics_curve-after">3</span><input type="range" min="1" max="5" value="3" id="sl-dynamics_curve-after"></td></tr>
+          <tr class="eval-memo-row"><td colspan="3"><input type="text" class="eval-memo-input" id="em-dynamics_curve" placeholder="変化の要因・作業内容…" data-i18n-ph="phEvalMemo"></td></tr>
+          <tr><td class="slider-item-label" data-sl-key="evenness">均一性<span class="slider-hint">低い → 高い</span></td><td class="slider-cell"><span class="slider-val" id="sv-evenness-before">3</span><input type="range" min="1" max="5" value="3" id="sl-evenness-before"></td><td class="slider-cell"><span class="slider-val" id="sv-evenness-after">3</span><input type="range" min="1" max="5" value="3" id="sl-evenness-after"></td></tr>
+          <tr class="eval-memo-row"><td colspan="3"><input type="text" class="eval-memo-input" id="em-evenness" placeholder="変化の要因・作業内容…" data-i18n-ph="phEvalMemo"></td></tr>
+        </tbody>
+      </table>
+      <div class="eval-section-hd" style="margin-top:22px" data-i18n="evalFeedbackHd">アーティスト／顧客フィードバック</div>
+      <div class="eval-fb-grid">
+        <div class="form-group"><label for="ef-positive" data-i18n="evalPosFbLabel">肯定的コメント</label><textarea id="ef-positive" placeholder="良かった点…" data-i18n-ph="phPosFb"></textarea></div>
+        <div class="form-group"><label for="ef-negative" data-i18n="evalNegFbLabel">否定的・要望コメント</label><textarea id="ef-negative" placeholder="改善要望…" data-i18n-ph="phNegFb"></textarea></div>
+      </div>
+      <div class="form-group">
+        <label data-i18n="evalOverallHd">総合評価</label>
+        <div class="btn-group">
+          <input type="radio" id="or-none" name="overall-rating" value="none"><label for="or-none" data-i18n="evalOrNone">コメントなし</label>
+          <input type="radio" id="or-sat"  name="overall-rating" value="satisfied"><label for="or-sat" data-i18n="evalOrSat">満足</label>
+          <input type="radio" id="or-imp"  name="overall-rating" value="needs-improvement"><label for="or-imp" data-i18n="evalOrImp">要改善</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" data-i18n="cardMemo">作業メモ</div>
+      <div class="form-group"><textarea id="f-memo" placeholder="気になった点、特記事項、次回への申し送りなど…" data-i18n-ph="phMemo"></textarea></div>
+    </div>
+    <div class="card">
+      <div class="card-title" data-i18n="cardTech">技術的発見</div>
+      <div class="form-group"><textarea id="f-tech-note" placeholder="深掘りしたい気づき、工夫、今後の研究テーマ…" data-i18n-ph="phTech"></textarea></div>
+    </div>
+    <button class="btn-primary" id="btn-save" data-i18n="btnSave">記録を保存する</button>
+  </div>
+
+  <div class="view" id="view-list">
+    <div class="list-header">
+      <h2 id="list-heading">作業記録一覧</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-ghost" id="btn-json-export" data-i18n="jsonExport">JSONバックアップ</button>
+        <button class="btn-ghost" id="btn-json-import" data-i18n="jsonImport">JSONインポート</button>
+        <input type="file" id="json-import-input" accept=".json" style="display:none">
+        <button class="btn-ghost" id="btn-csv-export" data-i18n="csvExport">CSVエクスポート</button>
+        <select class="filter-select" id="filter-type">
+          <option value="" data-i18n="filterAll">すべて</option>
+          <option value="concert" data-i18n="wtConcert">コンサート調律</option>
+          <option value="maintenance" data-i18n="wtMaintenance">保守点検</option>
+          <option value="pre-shipment" data-i18n="wtPreShipment">出荷前</option>
+        </select>
+      </div>
+    </div>
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" id="search-input" placeholder="顧客名・会場・メーカー・モデルで検索…" data-i18n-ph="searchPh">
+    </div>
+    <div id="records-list"></div>
+  </div>
+
+  <div class="view" id="view-detail"><div id="detail-body"></div></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================
+   CONSTANTS
+===================================================== */
+const STORAGE_KEY = 'choritsu_v3';
+
+/* =====================================================
+   I18N
+===================================================== */
+let lang = localStorage.getItem('lang') || 'ja';
+
+const I18N = {
+  ja: {
+    navNew:'新規記録', navList:'記録一覧',
+    cardBasic:'基本情報', cardEval:'評価・フィードバック', cardMemo:'作業メモ', cardTech:'技術的発見',
+    lblDate:'日付', lblType:'ピアノ種別', lblMaker:'メーカー', lblModel:'モデル名',
+    lblSerial:'製造番号', lblLastTuned:'前回調律日', lblWorkType:'作業種別',
+    lblCustomer:'顧客 / アーティスト', lblStaff:'スタッフ名', lblLocation:'会場名',
+    lblDisklavier:'Disklavier 搭載',
+    ptGrand:'GP（グランド）', ptUpright:'UP（アップライト）',
+    wtNone:'選択してください', wtConcert:'コンサート調律', wtMaintenance:'保守点検',
+    wtPreShipment:'出荷前', wtRecording:'録音',
+    ctArtist:'アーティスト', ctCorporate:'企業 / 団体', ctPrivate:'一般顧客',
+    evalSelfHd:'自分の評価（作業前 → 作業後）', evalFeedbackHd:'アーティスト／顧客フィードバック',
+    evalOverallHd:'総合評価', evalPosFbLabel:'肯定的コメント', evalNegFbLabel:'否定的・要望コメント',
+    evalOrNone:'コメントなし', evalOrSat:'満足', evalOrImp:'要改善',
+    evalBefore:'作業前', evalAfter:'作業後',
+    phMaker:'例：YAMAHA、KAWAI、Steinway', phModel:'例：CFX、S6X、CFIII',
+    phSerial:'例：1234567', phCustomer:'例：山田 花子、〇〇カルテット',
+    phLocation:'例：〇〇ホール、△△文化会館', phMemo:'気になった点、特記事項、次回への申し送りなど…',
+    phTech:'深掘りしたい気づき、工夫、今後の研究テーマ…', phEvalMemo:'変化の要因・作業内容…',
+    phPosFb:'良かった点…', phNegFb:'改善要望…', searchPh:'顧客名・会場・メーカー・モデルで検索…',
+    btnSave:'記録を保存する', btnUpdate:'変更を保存する',
+    csvExport:'CSVエクスポート', filterAll:'すべて',
+    listHeading:(n)=>`作業記録一覧（${n}件）`,
+    listEmpty:'記録がありません', listEmptySub:'「新規記録」から作業記録を追加してください',
+    memoTag:'メモあり', diskMeta:'Disklavier搭載',
+    noClient:'（顧客名なし）', pctDone:'完了',
+    detailBack:'一覧に戻る', detailEdit:'編集', detailMdBtn:'MDエクスポート',
+    detailMdBtnBottom:'MDエクスポート ↓', detailDel:'削除',
+    detailMore:'その他', detailCopySb:'サマリーコピー',
+    cardChecklist:'チェックリスト',
+    detailEvalTitle:'評価・フィードバック', detailEvalSelf:'自分の評価',
+    detailFeedHd:'アーティスト／顧客フィードバック',
+    detailPosFb:'肯定的コメント', detailNegFb:'否定的・要望コメント',
+    detailOverall:(n)=>`総合評価：${n}`,
+    cardMemoD:'作業メモ', cardTechD:'技術的発見',
+    infoMaker:'メーカー', infoModel:'モデル名', infoSerial:'製造番号',
+    infoLastTuned:'前回調律日', infoLocation:'会場名', infoStaff:'担当者', infoClientType:'顧客区分',
+    pianoGP:'GP（グランド）', pianoUP:'UP（アップライト）',
+    clientArtist:'アーティスト', clientCorporate:'企業 / 団体', clientPrivate:'一般顧客',
+    wlConcert:'コンサート調律', wlMaintenance:'保守点検', wlPreShipment:'出荷前',
+    wlRecording:'録音', wlRegular:'定期調律', wlPitchRaise:'ピッチ上げ', wlOther:'その他',
+    ovNone:'コメントなし', ovSat:'満足', ovImp:'要改善',
+    toastSaved:'記録を保存しました', toastUpdated:'変更を保存しました',
+    toastDeleted:'記録を削除しました', toastMd:'MDをダウンロードしました',
+    toastCopied:'コピーしました', toastCopyFail:'コピーに失敗しました',
+    jsonExport:'JSONバックアップ', jsonImport:'JSONインポート',
+    toastJsonExported:'バックアップをダウンロードしました',
+    toastImported:(n)=>`${n}件をインポートしました`,
+    toastImportFail:'インポートに失敗しました（ファイル形式を確認してください）',
+    importConfirm:(n)=>`${n}件の記録が見つかりました。\n既存の記録とマージします（同じIDは上書き）。\n続けますか？`,
+    valDate:'日付を入力してください', valType:'ピアノ種別を選択してください',
+    delConfirm:'この記録を削除しますか？',
+    mdWork:'## 作業内容',
+    mdCompletion:(d,t)=>`**完了: ${d} / ${t}項目**`,
+    mdMemo:'## 個人メモ・気づき', mdTech:'## 技術的発見',
+    zoneBass:'低音', zoneMid:'中音', zoneTreble:'高音',
+    slTouch:'タッチ', slTouchHint:'重い → 軽い',
+    slRepetition:'連打性', slRepetitionHint:'低い → 高い',
+    slVolume:'音量', slVolumeHint:'小 → 大',
+    slToneColor:'音色', slToneColorHint:'暗い → 明るい',
+    slIntonation:'発音', slIntonationHint:'閉じる → 開く',
+    slBalance:'バランス', slBalanceHint:'悪い → 良い',
+    slDynamicsCurve:'音色変化', slDynamicsCurveHint:'直線 → 曲線',
+    slEvenness:'均一性', slEvennessHint:'低い → 高い',
+    tunePre:'調律前', tunePost:'調律後', tunePin:'弦・ピン',
+    sbCopy:'コピー', sbPreview:'プレビュー',
+    sbInfo:(n,total)=>`${n} / ${total} 項目を出力`,
+    tagTitle:'タグ', rnTitle:'関連ノート生成',
+    rnInfo:(n,mode)=>`${n} ノート（${mode ? 'Obsidian ON' : 'Plain'}）`,
+    detailTitle:(y,m,d)=>`${y}年${m}月${d}日　作業記録`,
+    fmtDate:(y,m,d)=>`${y}年${parseInt(m,10)}月${parseInt(d,10)}日`,
+    phItemMemo:'メモ…', phMmMemo:'寸法変化の影響（音・タッチ）…',
+    tfPitchBefore:'調律前ピッチ', tfPitchAfter:'調律後ピッチ',
+    tfPreLabel:'調律前の状態', tfPostLabel:'調律後のコメント', tfPinLabel:'弦・チューニングピンの状態メモ',
+    tfPrePh:'例：全体的に低め…', tfPostPh:'例：良好に仕上がった…', tfPinPh:'例：チューニングピン緩みあり…',
+    emptyTuning:'未入力',
+    langBtn:'EN',
+  },
+  en: {
+    navNew:'New Record', navList:'Records',
+    cardBasic:'Basic Info', cardEval:'Evaluation & Feedback', cardMemo:'Work Notes', cardTech:'Technical Discovery',
+    lblDate:'Date', lblType:'Piano Type', lblMaker:'Maker', lblModel:'Model',
+    lblSerial:'Serial No.', lblLastTuned:'Last Tuned', lblWorkType:'Work Type',
+    lblCustomer:'Client / Artist', lblStaff:'Technician', lblLocation:'Venue',
+    lblDisklavier:'Disklavier',
+    ptGrand:'GP (Grand)', ptUpright:'UP (Upright)',
+    wtNone:'Select…', wtConcert:'Concert Tuning', wtMaintenance:'Maintenance',
+    wtPreShipment:'Pre-Shipment', wtRecording:'Recording',
+    ctArtist:'Artist', ctCorporate:'Corporate / Org', ctPrivate:'Private Client',
+    evalSelfHd:'Self Evaluation (Before → After)', evalFeedbackHd:'Artist / Client Feedback',
+    evalOverallHd:'Overall Rating', evalPosFbLabel:'Positive Comments', evalNegFbLabel:'Negative / Requests',
+    evalOrNone:'No Comment', evalOrSat:'Satisfied', evalOrImp:'Needs Improvement',
+    evalBefore:'Before', evalAfter:'After',
+    phMaker:'e.g. YAMAHA, Steinway', phModel:'e.g. CFX, D-274',
+    phSerial:'e.g. 1234567', phCustomer:'e.g. Jane Smith, XYZ Quartet',
+    phLocation:'e.g. City Hall, Concert Center', phMemo:'Notes, remarks, follow-up items…',
+    phTech:'Discoveries, techniques, research topics…', phEvalMemo:'Reason for change, work done…',
+    phPosFb:'What went well…', phNegFb:'Improvement requests…', searchPh:'Search by client, venue, maker, model…',
+    btnSave:'Save Record', btnUpdate:'Save Changes',
+    csvExport:'Export CSV', filterAll:'All',
+    listHeading:(n)=>`Work Records (${n})`,
+    listEmpty:'No records found', listEmptySub:'Add a new record from "New Record"',
+    memoTag:'Has Notes', diskMeta:'Disklavier',
+    noClient:'(No Client)', pctDone:'Done',
+    detailBack:'Back to List', detailEdit:'Edit', detailMdBtn:'Export MD',
+    detailMdBtnBottom:'Export MD ↓', detailDel:'Delete',
+    detailMore:'More', detailCopySb:'Copy Summary',
+    cardChecklist:'Checklist',
+    detailEvalTitle:'Evaluation & Feedback', detailEvalSelf:'Self Evaluation',
+    detailFeedHd:'Artist / Client Feedback',
+    detailPosFb:'Positive Comments', detailNegFb:'Negative / Requests',
+    detailOverall:(n)=>`Overall: ${n}`,
+    cardMemoD:'Work Notes', cardTechD:'Technical Discovery',
+    infoMaker:'Maker', infoModel:'Model', infoSerial:'Serial',
+    infoLastTuned:'Last Tuned', infoLocation:'Venue', infoStaff:'Technician', infoClientType:'Client Type',
+    pianoGP:'GP (Grand)', pianoUP:'UP (Upright)',
+    clientArtist:'Artist', clientCorporate:'Corporate / Org', clientPrivate:'Private Client',
+    wlConcert:'Concert Tuning', wlMaintenance:'Maintenance', wlPreShipment:'Pre-Shipment',
+    wlRecording:'Recording', wlRegular:'Regular Tuning', wlPitchRaise:'Pitch Raise', wlOther:'Other',
+    ovNone:'No Comment', ovSat:'Satisfied', ovImp:'Needs Improvement',
+    toastSaved:'Record saved', toastUpdated:'Changes saved',
+    toastDeleted:'Record deleted', toastMd:'MD downloaded',
+    toastCopied:'Copied', toastCopyFail:'Copy failed',
+    jsonExport:'Backup JSON', jsonImport:'Import JSON',
+    toastJsonExported:'Backup downloaded',
+    toastImported:(n)=>`${n} records imported`,
+    toastImportFail:'Import failed (check file format)',
+    importConfirm:(n)=>`Found ${n} records.\nThey will be merged with existing records (same ID will be overwritten).\nContinue?`,
+    valDate:'Please enter a date', valType:'Please select a piano type',
+    delConfirm:'Delete this record?',
+    mdWork:'## Work Summary',
+    mdCompletion:(d,t)=>`**Done: ${d} / ${t} items**`,
+    mdMemo:'## Personal Notes & Insights', mdTech:'## Technical Discovery',
+    zoneBass:'Bass', zoneMid:'Mid', zoneTreble:'Treble',
+    slTouch:'Touch', slTouchHint:'Heavy → Light',
+    slRepetition:'Repetition', slRepetitionHint:'Slow → Quick',
+    slVolume:'Volume', slVolumeHint:'Soft → Loud',
+    slToneColor:'Tone Color', slToneColorHint:'Dark → Bright',
+    slIntonation:'Intonation', slIntonationHint:'Poor → Good',
+    slBalance:'Balance', slBalanceHint:'Poor → Good',
+    slDynamicsCurve:'Dynamics Curve', slDynamicsCurveHint:'Linear → Progressive',
+    slEvenness:'Evenness', slEvennessHint:'Poor → Good',
+    tunePre:'Pre-tuning', tunePost:'Post-tuning', tunePin:'Strings & Pins',
+    sbCopy:'Copy', sbPreview:'Preview',
+    sbInfo:(n,total)=>`${n} / ${total} items to export`,
+    tagTitle:'Tags', rnTitle:'Related Notes',
+    rnInfo:(n,mode)=>`${n} notes (${mode ? 'Obsidian ON' : 'Plain'})`,
+    detailTitle:(y,m,d)=>`${y}/${m}/${d} — Work Record`,
+    fmtDate:(y,m,d)=>{ const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${mo[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`; },
+    phItemMemo:'Memo…', phMmMemo:'Effect on sound & touch…',
+    tfPitchBefore:'Pre-Tuning Pitch', tfPitchAfter:'Post-Tuning Pitch',
+    tfPreLabel:'Pre-Tuning Condition', tfPostLabel:'Post-Tuning Comment', tfPinLabel:'String / Pin Condition',
+    tfPrePh:'e.g. Overall slightly flat…', tfPostPh:'e.g. Finished well…', tfPinPh:'e.g. Loose tuning pins…',
+    emptyTuning:'(none)',
+    langBtn:'JA',
+  }
+};
+
+function t(key, ...args) {
+  const val = (I18N[lang] ?? I18N.ja)[key] ?? (I18N.ja[key] ?? key);
+  return typeof val === 'function' ? val(...args) : val;
+}
+
+function applyI18n() {
+  document.getElementById('html-root').lang = lang;
+  document.getElementById('lang-btn').textContent = t('langBtn');
+  // text content
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  // placeholders
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  // date inputs: set lang attribute so browser renders correct calendar locale
+  document.querySelectorAll('input[type="date"]').forEach(el => { el.setAttribute('lang', lang); });
+  // eval slider labels (text node + hint span)
+  document.querySelectorAll('.slider-item-label[data-sl-key]').forEach(td => {
+    const key = td.dataset.slKey;
+    const hint = td.querySelector('.slider-hint');
+    const textNode = Array.from(td.childNodes).find(n => n.nodeType === 3);
+    if (textNode) textNode.textContent = t('sl' + slKey(key));
+    if (hint) hint.textContent = t('sl' + slKey(key) + 'Hint');
+  });
+  // nav list tab special case (has child span)
+  const navListBtn = document.querySelector('[data-view="list"] [data-i18n="navList"]');
+  if (navListBtn) navListBtn.textContent = t('navList');
+  // save button (only if not in edit mode)
+  const btnSave = document.getElementById('btn-save');
+  if (btnSave && !editingId) btnSave.textContent = t('btnSave');
+  // rebuild checklist panel to pick up new language labels
+  const newView = document.getElementById('view-new');
+  if (newView && newView.classList.contains('active')) {
+    buildScenes(); restoreChecklistUI(); restoreTuningUI(); restoreEvalForm();
+  }
+}
+
+const PIANO_LABELS_JA = { grand: 'GP（グランド）', upright: 'UP（アップライト）' };
+function pianoLabel(type) { return type === 'grand' ? t('pianoGP') : type === 'upright' ? t('pianoUP') : type; }
+function workTypeLabel(wt) {
+  const map = { concert:'wlConcert', maintenance:'wlMaintenance', 'pre-shipment':'wlPreShipment',
+    recording:'wlRecording', regular:'wlRegular', 'pitch-raise':'wlPitchRaise', other:'wlOther' };
+  return map[wt] ? t(map[wt]) : wt;
+}
+function clientTypeLabel(ct) {
+  return ct === 'artist' ? t('clientArtist') : ct === 'corporate' ? t('clientCorporate') : ct === 'private' ? t('clientPrivate') : ct;
+}
+function overallLabel(v) {
+  return v === 'none' ? t('ovNone') : v === 'satisfied' ? t('ovSat') : v === 'needs-improvement' ? t('ovImp') : v;
+}
+// Keep for backward compat
+const PIANO_LABELS = PIANO_LABELS_JA;
+const WORK_TYPE_LABELS = {
+  concert: 'コンサート調律', maintenance: '保守点検', 'pre-shipment': '出荷前',
+  regular: '定期調律', 'pitch-raise': 'ピッチ上げ', other: 'その他',
+};
+const EVAL_SLIDERS = [
+  { key: 'touch' }, { key: 'repetition' }, { key: 'volume' },
+  { key: 'tone_color' }, { key: 'intonation' }, { key: 'dynamics_curve' }, { key: 'evenness' },
+];
+// Convert snake_case key to PascalCase for I18N lookup (e.g. 'tone_color' → 'ToneColor')
+function slKey(k) { return k.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(''); }
+function getEvalSliders() {
+  return EVAL_SLIDERS.map(({ key }) => ({ key, label: t('sl' + slKey(key)), hint: t('sl' + slKey(key) + 'Hint') }));
+}
+// Key migration map: old camelCase/legacy keys → new snake_case keys
+const EVAL_KEY_MIGRATE = {
+  bright: 'tone_color', open: 'intonation', toneChange: 'dynamics_curve', uniformity: 'evenness',
+  tone: 'tone_color', tone_evolution: 'dynamics_curve', balance: 'evenness',
+};
+function migrateEvaluation(raw) {
+  const ev = raw || {};
+  const result = {};
+  EVAL_SLIDERS.forEach(({ key }) => {
+    if (ev[key]) {
+      result[key] = { before: ev[key].before ?? 3, after: ev[key].after ?? 3, memo: ev[key].memo || '' };
+    } else {
+      const oldKey = Object.keys(EVAL_KEY_MIGRATE).find(ok => EVAL_KEY_MIGRATE[ok] === key && ev[ok]);
+      result[key] = oldKey
+        ? { before: ev[oldKey].before ?? 3, after: ev[oldKey].after ?? 3, memo: ev[oldKey].memo || '' }
+        : { before: 3, after: 3, memo: '' };
+    }
+  });
+  result.positive = ev.positive || '';
+  result.negative = ev.negative || '';
+  result.overall  = ev.overall  || '';
+  return result;
+}
+const OVERALL_LABELS = { none: 'コメントなし', satisfied: '満足', 'needs-improvement': '要改善' };
+const WORK_TYPE_KEYS = {
+  concert: 'concert_tuning', maintenance: 'maintenance', 'pre-shipment': 'pre_shipment',
+  regular: 'regular_tuning', 'pitch-raise': 'pitch_raise', recording: 'recording', other: 'other',
+};
+const WORK_TYPE_TAGS = {
+  concert: 'concert', maintenance: 'maintenance', 'pre-shipment': 'pre_shipment',
+  regular: 'regular', 'pitch-raise': 'pitch_raise', recording: 'recording',
+};
+const PIANO_TYPE_KEYS = { grand: 'GP', upright: 'UP' };
+const STANDARD_TAGS   = ['tuning','concert','regulation','voicing','repair','inspection','recording','client_feedback','technical_discovery'];
+
+const ALL = ['concert', 'maintenance', 'pre-shipment'];
+const MC  = ['maintenance', 'pre-shipment'];
+
+const SCENES_GP = [
+  {
+    id: 'inspection', name: '事前点検', enName: 'First Inspection',
+    groups: [
+      { items: [
+        { id: 'exterior',   label: '外装キズ確認',       enLabel: 'Damage Inspection',       hasMemo: true,    tags: ALL },
+        { id: 'hingePin',   label: 'ヒンジピン',         enLabel: 'Lid Hinge Pins',                            tags: ALL },
+      ]},
+      { label: 'ネジ増し締め', enLabel: 'Tightening Screws', items: [
+        { id: 'roofHinge',    label: '屋根ヒンジ',           enLabel: 'Lid Hinges',              tags: ['maintenance'] },
+        { id: 'longHinge',    label: 'ロングヒンジ',         enLabel: 'Long Hinges',             tags: ['maintenance'] },
+        { id: 'lidStick',     label: '屋根突き上げ棒',       enLabel: 'Lid Prop',                tags: ['maintenance'] },
+        { id: 'upperBar',     label: '上口棒',               enLabel: 'Upper Lip Beam',          tags: ['maintenance'] },
+        { id: 'legBolt',      label: '脚柱ボルトナット',     enLabel: 'Leg Bolts / Nuts',        tags: ['maintenance'] },
+        { id: 'pedalBoxBolt', label: 'ペダル箱ボルトナット', enLabel: 'Pedal Lyre Bolts / Nuts', tags: ['maintenance'] },
+        { id: 'keyLid',       label: '鍵盤蓋',               enLabel: 'Fall Board',              tags: ['maintenance'] },
+      ]},
+      { items: [
+        { id: 'touchSound', label: 'タッチ・音チェック', enLabel: 'Sound & Touch',        hasMemo: true,    tags: ALL },
+        { id: 'pedal',      label: 'ペダルチェック',     enLabel: 'Pedal Function',       hasMemo: true,    tags: ALL },
+        { id: 'climate',    label: '温湿度チェック',     enLabel: 'Temperature / Humidity', hasClimate: true, tags: ALL },
+      ]},
+    ]
+  },
+  { id: 'tuning', name: '調律', enName: 'Tuning', type: 'form' },
+  {
+    id: 'action', name: 'アクション', enName: 'Action',
+    groups: [
+      { label: 'アクションネジ増し締め', enLabel: 'Tightening Screws', items: [
+        { id: 'shankFlange',   label: 'シャンク・サポートフレンジ',                                  enLabel: 'Shank & Support Flanges',          tags: ['maintenance'] },
+        { id: 'actionSpread',  label: 'アクションスプレッド112.5mm',                                 enLabel: 'Action Spread 112.5mm',            tags: ['maintenance'] },
+        { id: 'keyboardFrame', label: '鍵盤筬・筬裏付け木',                                          enLabel: 'Key Frame & Rail Block',           tags: ['maintenance'] },
+        { id: 'damperFlange',  label: 'ダンパーレバーフレンジ',                                      enLabel: 'Damper Lever Flanges',             tags: ['maintenance'] },
+        { id: 'liftingRail',   label: 'リフティングレール・ストップレール・ソステヌートブラケット',   enLabel: 'Lift / Stop Rails & Sostenuto Brk', tags: ['maintenance'] },
+        { id: 'oobane',        label: 'オオバネ・鍵盤ストップ木・レッグナット',                      enLabel: 'Back Rail / Key Stop / Leg Nuts',  tags: ['maintenance'] },
+      ]},
+      { label: '整調', enLabel: 'Regulation', items: [
+        { id: 'flangeStick',  label: 'フレンジスティック・ピン抜け',   enLabel: 'Flange Stick / Loose Pin',  hasMemo: true, tags: ALL },
+        { id: 'keyBushing',   label: '鍵盤ブッシング固さ',             enLabel: 'Key Bushing',       hasMemo: true, tags: ALL },
+        { id: 'supportAlign', label: 'サポート合わせ',                 enLabel: 'Support Alignment',         hasMemo: true, tags: ['maintenance'] },
+        { id: 'bedding',      label: 'ベディング調整',                 enLabel: 'Bedding',                   hasMemo: true, tags: ALL },
+        { id: 'keyHeight',    label: '鍵盤高さ',                       enLabel: 'Key Height',                hasMm: true,  tags: ALL },
+        { id: 'keyDepth',     label: '鍵盤深さ',                       enLabel: 'Key Depth',                 hasMm: true,  tags: ALL },
+        { id: 'hammerClose',  label: 'ハンマー接近',                   enLabel: 'Let-Off',                   hasMm: true,  tags: ALL },
+        { id: 'hammerReturn', label: 'ハンマー戻り',                   enLabel: 'Hammer Drop',             hasMm: true,  tags: ALL },
+        { id: 'jack',         label: 'ジャック前後・上下',             enLabel: 'Jack Position',             hasMemo: true, tags: ALL },
+        { id: 'hammerDist',   label: '打弦距離',                       enLabel: 'Blow Distance',             hasMm: true,  tags: ALL },
+        { id: 'letOff',       label: '働き量',                         enLabel: 'After Touch',               hasMm: true,  tags: ALL },
+        { id: 'hammerStop',   label: 'ハンマーストップ',               enLabel: 'Hammer Stop',               hasMm: true,  tags: ALL },
+        { id: 'repSpring',    label: 'レペティションスプリング',       enLabel: 'Rep. Spring Tension',       hasMemo: true, tags: ALL },
+      ]},
+      { label: 'ペダル調整', enLabel: 'Pedal Regulation', items: [
+        { id: 'damperPlay',   label: 'ダンパーペダル遊び',       enLabel: 'Damper Pedal Play',   hasMemo: true, tags: ALL },
+        { id: 'damperCatch',  label: 'ダンパー掛かり',           enLabel: 'Damper Lift from Key',        hasMm: true,  tags: MC  },
+        { id: 'damperRaise',  label: 'ダンパー総上げ',           enLabel: 'Full Damper Lift',    hasMemo: true, tags: MC  },
+        { id: 'damperStop',   label: 'ダンパーストップレール',   enLabel: 'Damper Stop Rail',    hasMemo: true, tags: ALL },
+        { id: 'damperEnd',    label: 'ダンパーストロークエンド', enLabel: 'Damper Stroke End',   hasMemo: true, tags: ALL },
+        { id: 'sostenuto',    label: 'ソステヌートロッド調整',   enLabel: 'Sostenuto Rod',       hasMemo: true, tags: ALL },
+        { id: 'hyoshigi',     label: '拍子木調整',               enLabel: 'Lyre Stop',           hasMemo: true, tags: ALL },
+      ]},
+    ]
+  },
+  {
+    id: 'voicing', name: '整音', enName: 'Voicing',
+    groups: [{ items: [
+      { id: 'vVolume',    label: '音量調整',          enLabel: 'Volume',          hasMemo: true, tags: ALL },
+      { id: 'vTone',      label: '音色調整',          enLabel: 'Tone Color',      hasMemo: true, tags: ALL },
+      { id: 'vAttack',    label: '発音調整',          enLabel: 'Intonation',      hasMemo: true, tags: ALL },
+      { id: 'volChange',  label: '音色変化特性',      enLabel: 'Dynamics Curve',  hasMemo: true, tags: ALL },
+      { id: 'uniformity', label: '弱打・強打均一性',  enLabel: 'Evenness',        hasMemo: true, tags: ALL },
+      { id: 'shift',      label: 'シフト整音',        enLabel: 'Una Corda',       hasMemo: true, tags: ALL },
+    ]}]
+  },
+  {
+    id: 'final', name: '事後確認', enName: 'Final Check',
+    groups: [
+      { items: [
+        { id: 'polish', label: '拭き上げ・ロゴ磨き', enLabel: 'Polish & Logo', tags: ALL },
+      ]},
+      { label: 'Disklavier', isDkSection: true, items: [
+        { id: 'dkMeasure',   label: '測定',                     enLabel: 'Calibration',        hasMemo: true, tags: ALL },
+        { id: 'dkHalfPedal', label: 'ハーフペダル調整',         enLabel: 'Half Pedal Cal.',    hasMemo: true, tags: ALL },
+        { id: 'dkSostenuto', label: 'ソステヌートペダルテスト', enLabel: 'Sostenuto Test',     hasMemo: true, tags: MC  },
+        { id: 'dkUsbMidi',   label: 'USB/MIDIテスト',           enLabel: 'USB / MIDI Test',    hasMemo: true, tags: MC  },
+        { id: 'dkVersion',   label: 'バージョン確認',           enLabel: 'Version Check',      hasMemo: true, tags: MC  },
+      ]},
+    ]
+  },
+];
+
+const SCENES_UP = [
+  {
+    id: 'inspection', name: '事前点検', enName: 'First Inspection',
+    groups: [
+      { items: [
+        { id: 'exterior',   label: '外装キズ確認',       enLabel: 'Damage Inspection', hasMemo: true, tags: ALL },
+      ]},
+      { label: 'ネジ増し締め', enLabel: 'Tightening Screws', items: [
+        { id: 'longHinge',     label: 'ロングヒンジ',         enLabel: 'Long Hinges',        tags: ['maintenance'] },
+        { id: 'frontBoardDabo',label: '下前板ダボ',           enLabel: 'Lower Panel Pins',   tags: ['maintenance'] },
+        { id: 'keyLid',        label: '鍵盤蓋',               enLabel: 'Fall Board',         tags: ['maintenance'] },
+        { id: 'hyoshigi',      label: '拍子木',               enLabel: 'Fallboard Stop',     tags: ['maintenance'] },
+        { id: 'pedalBaseNut',  label: 'ペダル底板裏ナット',   enLabel: 'Pedal Base Nuts',    tags: ['maintenance'] },
+      ]},
+      { items: [
+        { id: 'touchSound', label: 'タッチ・音チェック', enLabel: 'Sound & Touch',          hasMemo: true,    tags: ALL },
+        { id: 'pedal',      label: 'ペダルチェック',     enLabel: 'Pedal Function',         hasMemo: true,    tags: ALL },
+        { id: 'climate',    label: '温湿度チェック',     enLabel: 'Temperature / Humidity', hasClimate: true, tags: ALL },
+      ]},
+    ]
+  },
+  { id: 'tuning', name: '調律', enName: 'Tuning', type: 'form' },
+  {
+    id: 'action', name: 'アクション', enName: 'Action',
+    groups: [
+      { label: 'アクションネジ増し締め', enLabel: 'Tightening Screws', items: [
+        { id: 'wippenFlange', label: 'ウィペンフレンジ',       enLabel: 'Wippen Flanges',       tags: ['maintenance'] },
+        { id: 'damperFlange', label: 'ダンパーレバーフレンジ', enLabel: 'Damper Lever Flanges', tags: ['maintenance'] },
+      ]},
+      { label: '整調', enLabel: 'Regulation', items: [
+        { id: 'flangeStick',  label: 'フレンジスティック・ピン抜け', enLabel: 'Flange Stick / Loose Pin', hasMemo: true, tags: ALL },
+        { id: 'keyBushing',   label: '鍵盤ブッシング固さ',           enLabel: 'Key Bushing',      hasMemo: true, tags: ALL },
+        { id: 'stringAlign',  label: '弦合わせ',                     enLabel: 'String Alignment',         hasMemo: true, tags: ALL },
+        { id: 'karanoshi',    label: 'から直し',                     enLabel: 'Lost Motion',              hasMemo: true, tags: ALL },
+        { id: 'keyHeight',    label: '鍵盤高さ',                     enLabel: 'Key Height',               hasMm: true,  tags: ALL },
+        { id: 'keyDepth',     label: '鍵盤深さ',                     enLabel: 'Key Depth',                hasMm: true,  tags: ALL },
+        { id: 'hammerClose',  label: 'ハンマー接近',                 enLabel: 'Let-Off',                  hasMm: true,  tags: ALL },
+        { id: 'hammerDist',   label: '打弦距離',                     enLabel: 'Blow Distance',            hasMm: true,  tags: ALL },
+        { id: 'letOff',       label: '働き量',                       enLabel: 'After Touch',              hasMm: true,  tags: ALL },
+        { id: 'hammerStop',   label: 'ハンマーストップ',             enLabel: 'Hammer Stop',              hasMm: true, tags: ALL },
+        { id: 'spoonHook',    label: 'スプーン掛け',                 enLabel: 'Spoon Height',             hasMm: true,  tags: ALL },
+      ]},
+      { label: 'ペダル調整', enLabel: 'Pedal Regulation', items: [
+        { id: 'damperPedal',  label: 'ダンパーペダル', enLabel: 'Damper Pedal',       hasMemo: true, tags: ALL },
+        { id: 'damperRaise',  label: 'ダンパー総上げ', enLabel: 'Full Damper Lift',   hasMemo: true, tags: MC  },
+        { id: 'softPedal',    label: 'ソフトペダル',   enLabel: 'Soft Pedal',         hasMemo: true, tags: ALL },
+        { id: 'mufflerPedal', label: 'マフラーペダル', enLabel: 'Muffler Pedal',      hasMemo: true, tags: ALL },
+      ]},
+    ]
+  },
+  {
+    id: 'voicing', name: '整音', enName: 'Voicing',
+    groups: [{ items: [
+      { id: 'vVolume',    label: '音量調整',         enLabel: 'Volume',         hasMemo: true, tags: ALL },
+      { id: 'vTone',      label: '音色調整',         enLabel: 'Tone Color',     hasMemo: true, tags: ALL },
+      { id: 'vAttack',    label: '発音調整',         enLabel: 'Intonation',     hasMemo: true, tags: ALL },
+      { id: 'volChange',  label: '音色変化特性',     enLabel: 'Dynamics Curve', hasMemo: true, tags: MC  },
+      { id: 'uniformity', label: '弱打・強打均一性', enLabel: 'Evenness',       hasMemo: true, tags: ALL },
+      { id: 'shift',      label: 'シフト整音',       enLabel: 'Una Corda',      hasMemo: true, tags: ALL },
+    ]}]
+  },
+  {
+    id: 'final', name: '事後確認', enName: 'Final Check',
+    groups: [
+      { items: [
+        { id: 'polish', label: '拭き上げ・ロゴ磨き', enLabel: 'Polish & Logo', tags: ['concert', 'maintenance'] },
+      ]},
+      { label: 'Disklavier', isDkSection: true, items: [
+        { id: 'dkMeasure', label: '測定',           enLabel: 'Calibration',   hasMemo: true, tags: ALL },
+        { id: 'dkUsbMidi', label: 'USB/MIDIテスト', enLabel: 'USB / MIDI Test', hasMemo: true, tags: MC  },
+        { id: 'dkVersion', label: 'バージョン確認', enLabel: 'Version Check', hasMemo: true, tags: MC  },
+      ]},
+    ]
+  },
+];
+
+/* =====================================================
+   STATE
+===================================================== */
+let records          = [];
+let checklist        = {};
+let tuningData       = {};
+let evaluation       = {};
+let currentPianoType = 'grand';
+let currentWorkType  = '';
+let isDK             = false;
+let summaryItems     = [];
+let obsidianMode     = localStorage.getItem('obsidianMode') !== 'false'; // default ON
+let currentDetailRec = null;
+let editingId        = null;
+let activeTags       = new Set();
+let customTags       = new Set();
+
+/* =====================================================
+   HELPERS
+===================================================== */
+function getScenes()        { return currentPianoType === 'upright' ? SCENES_UP : SCENES_GP; }
+function getScenesFor(t)    { return t === 'upright' ? SCENES_UP : SCENES_GP; }
+function iLabel(item)       { return (lang === 'en' && item.enLabel) ? item.enLabel : item.label; }
+function gLabel(group)      { return (lang === 'en' && group.enLabel) ? group.enLabel : group.label; }
+function sName(scene)       { return (lang === 'en' && scene.enName) ? scene.enName : scene.name; }
+function fmtDate(str)       { if (!str) return ''; const [y,m,d] = str.split('-'); return t('fmtDate', y, m, d); }
+function load()  { try { records = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { records = []; } }
+function save()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
+
+/* =====================================================
+   VIEWS
+===================================================== */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.view === id || (id === 'detail' && t.dataset.view === 'list')));
+  if (id === 'list') renderList();
+  updateNavCount();
+}
+function updateNavCount() {
+  const el = document.getElementById('nav-count');
+  el.textContent = records.length;
+  el.style.display = records.length > 0 ? 'inline-block' : 'none';
+}
+
+/* =====================================================
+   CHECKLIST STATE INIT
+===================================================== */
+function initChecklist() {
+  checklist  = {};
+  tuningData = { pitchBefore: '440', pitchAfter: '440', preCondition: '', postComment: '', stringPinMemo: '' };
+  getScenes().forEach(s => {
+    if (s.type === 'form') return;
+    checklist[s.id] = {};
+    s.groups.forEach(g => g.items.forEach(item => {
+      const st = { checked: false };
+      if (item.hasMemo)    st.memo = '';
+      if (item.hasClimate) { st.temp = ''; st.humidity = ''; }
+      if (item.hasMm)    { st.mm = { bass: { before: '', after: '' }, mid: { before: '', after: '' }, treble: { before: '', after: '' } }; st.memo = ''; }
+      checklist[s.id][item.id] = st;
+    }));
+  });
+}
+
+/* =====================================================
+   SCENE BUILDING
+===================================================== */
+function buildScenes() {
+  const scenes = getScenes();
+  const tabBar = document.getElementById('scene-tab-bar');
+  const panels = document.getElementById('scene-panels');
+  tabBar.innerHTML = '';
+  panels.innerHTML = '';
+
+  scenes.forEach((scene, si) => {
+    const btn = document.createElement('button');
+    btn.className = 'scene-tab-btn' + (si === 0 ? ' active' : '');
+    btn.textContent = sName(scene);
+    btn.addEventListener('click', () => switchScene(scene.id));
+    tabBar.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'scene-content' + (si === 0 ? ' active' : '');
+    panel.id = 'panel-' + scene.id;
+
+    if (scene.type === 'form') buildTuningPanel(panel);
+    else                       buildChecklistPanel(panel, scene);
+    panels.appendChild(panel);
+  });
+
+  updateDkVisibility();
+  updateHighlights();
+}
+
+function buildChecklistPanel(panel, scene) {
+  const totalItems = countItems(scene, true);
+  const prog = document.createElement('div');
+  prog.className = 'scene-progress';
+  prog.innerHTML = `<div class="prog-bar"><div class="prog-fill" id="pf-${scene.id}" style="width:0%"></div></div><div class="prog-text" id="pt-${scene.id}">0 / ${totalItems}</div>`;
+  panel.appendChild(prog);
+
+  scene.groups.forEach((group, gi) => {
+    const section = document.createElement('div');
+    section.className = 'group-section';
+    if (group.isDkSection) section.classList.add('dk-section');
+    section.dataset.sid = scene.id;
+    section.dataset.gi  = gi;
+
+    if (group.label) {
+      const hd = document.createElement('div');
+      hd.className = 'group-header';
+      hd.id = 'gh-' + scene.id + '-' + gi;
+      hd.innerHTML = `<span>${esc(gLabel(group))}<span class="gh-dot">🔵</span></span><span class="gh-count" id="gc-${scene.id}-${gi}">0 / ${group.items.length}</span>`;
+      section.appendChild(hd);
+    }
+
+    group.items.forEach(item => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'item-wrapper';
+      wrapper.id = 'iw-' + scene.id + '-' + item.id;
+
+      const lbl = document.createElement('label');
+      lbl.className = 'checklist-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      const span = document.createElement('span');
+      span.className = 'item-label';
+      const dot = document.createElement('span');
+      dot.className = 'item-hl-dot';
+      dot.textContent = '🔵 ';
+      const txt = document.createTextNode(iLabel(item));
+      span.appendChild(dot);
+      span.appendChild(txt);
+      lbl.appendChild(cb);
+      lbl.appendChild(span);
+      wrapper.appendChild(lbl);
+
+      if (item.hasClimate) {
+        const cr = document.createElement('div');
+        cr.className = 'climate-row';
+        cr.innerHTML = `<input type="number" class="climate-input" placeholder="°C" step="0.1"><span>°C</span><input type="number" class="climate-input" placeholder="%" step="1" min="0" max="100"><span>%</span>`;
+        const [ti, hi] = cr.querySelectorAll('input');
+        ti.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].temp = e.target.value; });
+        hi.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].humidity = e.target.value; });
+        wrapper.appendChild(cr);
+      }
+      if (item.hasMemo) {
+        const memo = document.createElement('input');
+        memo.type = 'text'; memo.className = 'item-memo'; memo.placeholder = t('phItemMemo');
+        memo.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].memo = e.target.value; });
+        wrapper.appendChild(memo);
+      }
+      if (item.hasMm) {
+        const grid = document.createElement('div');
+        grid.className = 'mm-grid';
+        grid.innerHTML = `
+          <div></div><div class="mm-col-hd">${t('zoneBass')}</div><div class="mm-col-hd">${t('zoneMid')}</div><div class="mm-col-hd">${t('zoneTreble')}</div>
+          <div class="mm-row-lb">${t('tunePre')}</div>
+          <input type="number" class="mm-input" placeholder="—" step="0.5" data-zone="bass" data-phase="before">
+          <input type="number" class="mm-input" placeholder="—" step="0.5" data-zone="mid"  data-phase="before">
+          <input type="number" class="mm-input" placeholder="—" step="0.5" data-zone="treble" data-phase="before">
+          <div class="mm-row-lb">${t('tunePost')}</div>
+          <input type="number" class="mm-input" placeholder="—" step="0.5" data-zone="bass" data-phase="after">
+          <input type="number" class="mm-input" placeholder="—" step="0.5" data-zone="mid"  data-phase="after">
+          <input type="number" class="mm-input" placeholder="—" step="0.5" data-zone="treble" data-phase="after">`;
+        grid.querySelectorAll('.mm-input').forEach(inp => {
+          inp.addEventListener('input', e => {
+            const st = checklist[scene.id]?.[item.id];
+            if (st?.mm) st.mm[e.target.dataset.zone][e.target.dataset.phase] = e.target.value;
+          });
+        });
+        wrapper.appendChild(grid);
+        const mmMemo = document.createElement('input');
+        mmMemo.type = 'text'; mmMemo.className = 'item-memo'; mmMemo.placeholder = t('phMmMemo');
+        mmMemo.addEventListener('input', e => { const st = checklist[scene.id]?.[item.id]; if (st) st.memo = e.target.value; });
+        wrapper.appendChild(mmMemo);
+      }
+
+      cb.addEventListener('change', () => {
+        if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].checked = cb.checked;
+        lbl.classList.toggle('checked', cb.checked);
+        updateProgress(scene);
+        if (group.label) updateGroupCount(scene.id, gi, group);
+      });
+
+      section.appendChild(wrapper);
+    });
+    panel.appendChild(section);
+  });
+}
+
+function countItems(scene, respectDK) {
+  let n = 0;
+  scene.groups.forEach(g => {
+    if (g.isDkSection && respectDK && !isDK) return;
+    n += g.items.length;
+  });
+  return n;
+}
+
+function updateGroupCount(sceneId, gi, group) {
+  const el = document.getElementById('gc-' + sceneId + '-' + gi);
+  if (!el) return;
+  const st   = checklist[sceneId] || {};
+  const done = group.items.filter(i => st[i.id]?.checked).length;
+  el.textContent = done + ' / ' + group.items.length;
+}
+
+function buildTuningPanel(panel) {
+  panel.innerHTML = `
+    <div class="scene-progress"><div class="prog-bar"><div class="prog-fill" id="pf-tuning" style="width:0%"></div></div><div class="prog-text" id="pt-tuning">0 / 5</div></div>
+    <div class="tuning-form">
+      <div class="tuning-field">
+        <div class="tf-label">${t('tfPitchBefore')}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" id="tf-pitch-before" value="440" min="400" max="480" step="0.5" style="width:120px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:15px;font-family:inherit">
+          <span style="font-size:14px;color:var(--muted)">Hz</span>
+        </div>
+      </div>
+      <div class="tuning-field">
+        <div class="tf-label">${t('tfPitchAfter')}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" id="tf-pitch-after" value="440" min="400" max="480" step="0.5" style="width:120px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:15px;font-family:inherit">
+          <span style="font-size:14px;color:var(--muted)">Hz</span>
+        </div>
+      </div>
+      <div class="tuning-field"><div class="tf-label">${t('tfPreLabel')}</div><input type="text" id="tf-pre" placeholder="${t('tfPrePh')}"></div>
+      <div class="tuning-field"><div class="tf-label">${t('tfPostLabel')}</div><input type="text" id="tf-post" placeholder="${t('tfPostPh')}"></div>
+      <div class="tuning-field"><div class="tf-label">${t('tfPinLabel')}</div><input type="text" id="tf-pin" placeholder="${t('tfPinPh')}"></div>
+    </div>`;
+
+  panel.querySelector('#tf-pitch-before').addEventListener('input', e => { tuningData.pitchBefore = e.target.value; updateTuningProgress(); });
+  panel.querySelector('#tf-pitch-after').addEventListener('input',  e => { tuningData.pitchAfter  = e.target.value; updateTuningProgress(); });
+  panel.querySelector('#tf-pre').addEventListener('input',  e => { tuningData.preCondition = e.target.value; updateTuningProgress(); });
+  panel.querySelector('#tf-post').addEventListener('input', e => { tuningData.postComment   = e.target.value; updateTuningProgress(); });
+  panel.querySelector('#tf-pin').addEventListener('input',  e => { tuningData.stringPinMemo = e.target.value; updateTuningProgress(); });
+}
+
+function switchScene(sceneId) {
+  getScenes().forEach((s, i) => {
+    const btn = document.querySelectorAll('.scene-tab-btn')[i];
+    const pan = document.getElementById('panel-' + s.id);
+    if (btn) btn.classList.toggle('active', s.id === sceneId);
+    if (pan) pan.classList.toggle('active', s.id === sceneId);
+  });
+}
+
+function updateProgress(scene) {
+  const st = checklist[scene.id] || {};
+  let done = 0, total = 0;
+  scene.groups.forEach(g => {
+    if (g.isDkSection && !isDK) return;
+    g.items.forEach(item => { total++; if (st[item.id]?.checked) done++; });
+  });
+  const pct = total === 0 ? 0 : Math.round(done / total * 100);
+  const pf = document.getElementById('pf-' + scene.id);
+  const pt = document.getElementById('pt-' + scene.id);
+  if (pf) pf.style.width = pct + '%';
+  if (pt) pt.textContent = done + ' / ' + total;
+}
+
+function updateTuningProgress() {
+  const n = [tuningData.pitchBefore, tuningData.pitchAfter].filter(Boolean).length;
+  const pf = document.getElementById('pf-tuning'), pt = document.getElementById('pt-tuning');
+  if (pf) pf.style.width = Math.round(n / 2 * 100) + '%';
+  if (pt) pt.textContent = n + ' / 2';
+}
+
+function updateDkVisibility() {
+  document.querySelectorAll('.dk-section').forEach(el => {
+    el.style.display = isDK ? 'block' : 'none';
+  });
+  getScenes().forEach(scene => {
+    if (scene.type === 'form') return;
+    const ptEl = document.getElementById('pt-' + scene.id);
+    if (ptEl) updateProgress(scene);
+  });
+}
+
+function updateHighlights() {
+  const wt = currentWorkType;
+  // recording uses the same highlight tags as concert
+  const effectiveWt = (wt === 'recording') ? 'concert' : wt;
+  getScenes().forEach(scene => {
+    if (scene.type === 'form') return;
+    scene.groups.forEach((group, gi) => {
+      let anyMatch = !wt;
+      group.items.forEach(item => {
+        const el = document.getElementById('iw-' + scene.id + '-' + item.id);
+        if (!el) return;
+        if (!wt) {
+          el.classList.remove('item-hl', 'item-gray');
+        } else {
+          const match = (item.tags || []).includes(effectiveWt);
+          el.classList.toggle('item-hl',   match);
+          el.classList.toggle('item-gray', !match);
+          if (match) anyMatch = true;
+        }
+      });
+      if (group.label) {
+        const gh = document.getElementById('gh-' + scene.id + '-' + gi);
+        if (gh) {
+          if (!wt) { gh.classList.remove('gh-hl', 'gh-gray'); }
+          else { gh.classList.toggle('gh-hl',   anyMatch); gh.classList.toggle('gh-gray', !anyMatch); }
+        }
+      }
+    });
+  });
+}
+
+/* =====================================================
+   SAVE
+===================================================== */
+document.getElementById('btn-save').addEventListener('click', () => {
+  const date      = document.getElementById('f-date').value;
+  const typeEl    = document.querySelector('input[name="piano-type"]:checked');
+  const type      = typeEl ? typeEl.value : '';
+  const maker     = document.getElementById('f-maker').value.trim();
+  const model     = document.getElementById('f-model').value.trim();
+  const serial    = document.getElementById('f-serial').value.trim();
+  const lastTuned = document.getElementById('f-last-tuned').value;
+  const workType  = document.getElementById('f-work-type').value;
+  const customer  = document.getElementById('f-customer').value.trim();
+
+  const location  = document.getElementById('f-location').value.trim();
+  const staff      = document.getElementById('f-staff').value.trim();
+  const clientType = document.getElementById('f-client-type').value;
+  const memo       = document.getElementById('f-memo').value.trim();
+  const techNote   = document.getElementById('f-tech-note').value.trim();
+  const disklavier = document.getElementById('f-disklavier').checked;
+
+  if (!date) { toast(t('valDate')); return; }
+  if (!type) { toast(t('valType')); return; }
+
+  const recData = { date, type, maker, model, serial, lastTuned, workType, customer, clientType, location, staff, memo, techNote, disklavier,
+    checklist:  JSON.parse(JSON.stringify(checklist)),
+    tuningData: JSON.parse(JSON.stringify(tuningData)),
+    evaluation: JSON.parse(JSON.stringify(evaluation)),
+    savedAt:    new Date().toISOString() };
+  if (editingId) {
+    const idx = records.findIndex(r => r.id === editingId);
+    if (idx !== -1) records[idx] = { ...records[idx], ...recData };
+    editingId = null;
+    toast(t('toastUpdated'));
+  } else {
+    records.unshift({ id: Date.now().toString(), ...recData });
+    toast(t('toastSaved'));
+  }
+  save();
+  updateNavCount();
+
+  // reset
+  document.getElementById('f-date').value = todayStr();
+  document.querySelectorAll('input[name="piano-type"]').forEach(r => r.checked = false);
+  ['f-maker','f-model','f-serial','f-last-tuned','f-work-type','f-customer','f-location','f-memo','f-tech-note'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('f-client-type').value = 'artist';
+  document.getElementById('f-staff').value = 'Shinya Maeda';
+  document.getElementById('f-disklavier').checked = false;
+  currentPianoType = 'grand'; currentWorkType = ''; isDK = false;
+  initChecklist(); buildScenes(); resetEvalForm();
+  document.getElementById('btn-save').textContent = t('btnSave');
+});
+
+/* =====================================================
+   LIST
+===================================================== */
+function renderList() {
+  const ft  = document.getElementById('filter-type').value;
+  const q   = (document.getElementById('search-input').value || '').trim().toLowerCase();
+  const con = document.getElementById('records-list');
+  con.innerHTML = '';
+  let filtered = ft ? records.filter(r => r.workType === ft) : records;
+  if (q) {
+    filtered = filtered.filter(r =>
+      [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.memo]
+        .filter(Boolean).join(' ').toLowerCase().includes(q)
+    );
+  }
+  document.getElementById('list-heading').textContent = t('listHeading', filtered.length);
+  if (!filtered.length) {
+    con.innerHTML = `<div class="empty-state"><h3>${t('listEmpty')}</h3><p>${t('listEmptySub')}</p></div>`;
+    return;
+  }
+  filtered.forEach(rec => {
+    const [y, m, d] = rec.date.split('-');
+    const pct  = calcPct(rec);
+    const card = document.createElement('div');
+    card.className = 'record-card';
+    card.innerHTML = `
+      <div class="date-badge"><div class="ym">${y}/${m}</div><div class="dd">${d}</div></div>
+      <div class="record-info">
+        <div class="record-title">${esc(rec.customer || t('noClient'))}</div>
+        <div class="record-meta">
+          <span>${pianoLabel(rec.type)}</span>
+          ${rec.workType ? '<span>' + workTypeLabel(rec.workType) + '</span>' : ''}
+          ${rec.disklavier ? '<span>' + t('diskMeta') + '</span>' : ''}
+          ${rec.memo  ? '<span>' + t('memoTag') + '</span>' : ''}
+        </div>
+      </div>
+      <div class="completion-badge"><div class="completion-pct">${pct}%</div><div class="completion-lbl">${t('pctDone')}</div></div>`;
+    card.addEventListener('click', () => showDetail(rec.id));
+    con.appendChild(card);
+  });
+}
+document.getElementById('filter-type').addEventListener('change', renderList);
+document.getElementById('search-input').addEventListener('input', renderList);
+document.getElementById('btn-csv-export').addEventListener('click', exportCSV);
+document.getElementById('btn-json-export').addEventListener('click', exportJSON);
+document.getElementById('btn-json-import').addEventListener('click', () =>
+  document.getElementById('json-import-input').click());
+document.getElementById('json-import-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) { importJSON(file); e.target.value = ''; }
+});
+
+function calcPct(rec) {
+  const cl = rec.checklist;
+  if (!cl) return 0;
+  const firstVal = Object.values(cl)[0];
+  // old array format
+  if (Array.isArray(firstVal)) {
+    let done = 0, total = 0;
+    Object.values(cl).forEach(arr => arr.forEach(v => { total++; if (v) done++; }));
+    return total === 0 ? 0 : Math.round(done / total * 100);
+  }
+  const scenes = getScenesFor(rec.type || 'grand');
+  let done = 0, total = 0;
+  scenes.forEach(scene => {
+    if (scene.type === 'form') return;
+    const st = cl[scene.id] || {};
+    if (Array.isArray(st)) { st.forEach(v => { total++; if (v) done++; }); return; }
+    scene.groups.forEach(g => {
+      if (g.isDkSection && !rec.disklavier) return;
+      g.items.forEach(item => { total++; if (st[item.id]?.checked) done++; });
+    });
+  });
+  return total === 0 ? 0 : Math.round(done / total * 100);
+}
+
+/* =====================================================
+   DETAIL
+===================================================== */
+function showDetail(id) {
+  const rec = records.find(r => r.id === id);
+  if (!rec) return;
+  const [y, m, d] = rec.date.split('-');
+  const pct    = calcPct(rec);
+  const scenes = getScenesFor(rec.type);
+  let   scenesHtml = '';
+
+  scenes.forEach(scene => {
+    if (scene.type === 'form') {
+      const td = rec.tuningData || {};
+      const rows = [
+        [t('tfPitchBefore'), td.pitchBefore ? td.pitchBefore + ' Hz' : ''],
+        [t('tfPitchAfter'),  td.pitchAfter  ? td.pitchAfter  + ' Hz' : ''],
+        [t('tfPreLabel'),  td.preCondition], [t('tfPostLabel'), td.postComment],
+        [t('tunePin'),     td.stringPinMemo],
+      ].filter(([, v]) => v);
+      scenesHtml += `<div class="detail-scene"><div class="detail-scene-hd"><span>${esc(sName(scene))}</span></div>${
+        rows.length ? rows.map(([l, v]) => `<div class="tuning-summary-row"><span class="ts-label">${l}</span><span class="ts-value">${esc(String(v))}</span></div>`).join('')
+                    : `<div style="color:var(--muted);font-size:13px;padding:8px 0">${t('emptyTuning')}</div>`
+      }</div>`;
+      return;
+    }
+
+    const sceneState = (rec.checklist || {})[scene.id] || {};
+    const isOldArr   = Array.isArray(sceneState);
+
+    if (isOldArr) {
+      const done = sceneState.filter(Boolean).length;
+      scenesHtml += `<div class="detail-scene"><div class="detail-scene-hd"><span>${esc(sName(scene))}</span><span>${done} / ${sceneState.length}</span></div>${
+        sceneState.map((v, i) => `<div class="detail-item ${v ? '' : 'unchecked'}"><div class="check-dot ${v ? 'yes' : 'no'}">${v ? '✓' : ''}</div><span>項目 ${i + 1}</span></div>`).join('')
+      }</div>`;
+      return;
+    }
+
+    let sceneDone = 0, sceneTotal = 0;
+    scene.groups.forEach(g => {
+      if (g.isDkSection && !rec.disklavier) return;
+      g.items.forEach(item => { sceneTotal++; if (sceneState[item.id]?.checked) sceneDone++; });
+    });
+
+    let groupsHtml = '';
+    scene.groups.forEach((group, gi) => {
+      if (group.isDkSection && !rec.disklavier) return;
+      const wt   = rec.workType;
+      const effectiveWt = (wt === 'recording') ? 'concert' : wt;
+      const anyMatch = group.items.some(item => (item.tags || []).includes(effectiveWt));
+      const isHl = !!(wt && anyMatch);
+
+      if (group.label) {
+        const gDone  = group.items.filter(item => sceneState[item.id]?.checked).length;
+        groupsHtml += `<div class="detail-group-hd${isHl ? ' hl' : ''}"><span>${esc(gLabel(group))}${isHl ? ' 🔵' : ''}</span><span>${gDone} / ${group.items.length}</span></div>`;
+      }
+      group.items.forEach(item => {
+        const st      = sceneState[item.id] || {};
+        const checked = !!st.checked;
+        let extra = '';
+        if (item.hasClimate && (st.temp || st.humidity)) {
+          const parts = [];
+          if (st.temp)     parts.push(st.temp + '°C');
+          if (st.humidity) parts.push(st.humidity + '%');
+          extra += `<div class="detail-climate">${parts.join(' / ')}</div>`;
+        }
+        if (item.hasMemo && st.memo) extra += `<div class="detail-memo">${esc(st.memo)}</div>`;
+        if (item.hasMm && st.mm) {
+          const zones = [['bass', t('zoneBass')],['mid', t('zoneMid')],['treble', t('zoneTreble')]];
+          const hasData = zones.some(([z]) => st.mm[z]?.before || st.mm[z]?.after);
+          if (hasData) {
+            extra += `<table class="mm-detail-tbl"><thead><tr><th></th>${zones.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>`;
+            extra += `<tr><td>${t('tunePre')}</td>${zones.map(([z])=>`<td>${st.mm[z]?.before ? st.mm[z].before+'mm' : '—'}</td>`).join('')}</tr>`;
+            extra += `<tr><td>${t('tunePost')}</td>${zones.map(([z])=>`<td>${st.mm[z]?.after  ? st.mm[z].after +'mm' : '—'}</td>`).join('')}</tr>`;
+            extra += `</tbody></table>`;
+          }
+          if (st.memo) extra += `<div class="detail-memo">${esc(st.memo)}</div>`;
+        }
+        groupsHtml += `<div class="detail-item ${checked ? '' : 'unchecked'}">
+          <div class="check-dot ${checked ? 'yes' : 'no'}">${checked ? '✓' : ''}</div>
+          <div><span>${esc(iLabel(item))}</span>${extra}</div></div>`;
+      });
+    });
+
+    scenesHtml += `<div class="detail-scene"><div class="detail-scene-hd"><span>${esc(sName(scene))}</span><span>${sceneDone} / ${sceneTotal}</span></div>${groupsHtml}</div>`;
+  });
+
+  const infoRows = [[t('infoMaker'), rec.maker], [t('infoModel'), rec.model], [t('infoSerial'), rec.serial], [t('infoLastTuned'), fmtDate(rec.lastTuned)], [t('infoLocation'), rec.location], [t('infoStaff'), rec.staff], [t('infoClientType'), rec.clientType ? clientTypeLabel(rec.clientType) : null]].filter(([, v]) => v);
+
+  summaryItems = buildSummaryItems(rec);
+  currentDetailRec = rec;
+  activeTags = new Set(computeAutoTags(rec));
+  customTags = new Set();
+
+  // Hero: derive a meaningful title line
+  const heroName = rec.customer
+    ? esc(rec.customer)
+    : rec.maker
+      ? esc(rec.maker + (rec.model ? ' · ' + rec.model : ''))
+      : pianoLabel(rec.type) + (rec.workType ? ' · ' + workTypeLabel(rec.workType) : '');
+
+  // SVG icon snippets
+  const IC = {
+    back:  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`,
+    edit:  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+    md:    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+    copy:  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+    more:  `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>`,
+    link:  `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+    trash: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
+  };
+
+  document.getElementById('detail-body').innerHTML = `
+    <div class="d-top-nav">
+      <button class="d-back-btn" id="d-back">${IC.back}${t('detailBack')}</button>
+    </div>
+
+    <div class="d-hero">
+      <div class="d-hero-eyebrow">${fmtDate(rec.date)}</div>
+      <div class="d-hero-name">${heroName}</div>
+      <div class="d-hero-badges">
+        <span class="d-badge d-badge-gold">${pianoLabel(rec.type)}</span>
+        ${rec.workType ? `<span class="d-badge">${workTypeLabel(rec.workType)}</span>` : ''}
+        ${rec.disklavier ? `<span class="d-badge">${t('diskMeta')}</span>` : ''}
+      </div>
+      ${infoRows.length ? `<div class="d-hero-grid">${infoRows.map(([l, v]) => `<div><div class="d-hgi-label">${l}</div><div class="d-hgi-value">${esc(v)}</div></div>`).join('')}</div>` : ''}
+      <div class="d-hero-prog">
+        <div class="d-hero-prog-track"><div class="d-hero-prog-fill" style="width:${pct}%"></div></div>
+        <div class="d-hero-prog-pct">${pct}%<span class="d-hero-prog-done">${t('pctDone')}</span></div>
+      </div>
+    </div>
+
+    <div class="d-action-bar">
+      <button class="d-btn d-btn-primary" id="d-edit">${IC.edit}${t('detailEdit')}</button>
+      <button class="d-btn d-btn-secondary" id="d-md">${IC.md}${t('detailMdBtn')}</button>
+      ${summaryItems.length ? `<button class="d-btn d-btn-secondary" id="d-copy-sb">${IC.copy}${t('detailCopySb')}</button>` : ''}
+      <div class="d-more-wrap">
+        <button class="d-btn d-btn-ghost" id="d-more">${IC.more}${t('detailMore')}</button>
+        <div class="d-more-menu" id="d-more-menu">
+          <label class="d-more-item d-ob-row" for="d-ob-toggle">
+            ${IC.link}Obsidian<input class="d-ob-check" type="checkbox" id="d-ob-toggle"${obsidianMode ? ' checked' : ''}>
+          </label>
+          <button class="d-more-item d-more-danger" id="d-del">${IC.trash}${t('detailDel')}</button>
+        </div>
+      </div>
+    </div>
+
+    ${renderTagsHTML()}
+    ${renderSummaryBuilderHTML()}
+    <div id="related-notes-wrapper">${renderRelatedNotesHTML(rec)}</div>
+    <div class="card"><div class="card-title">${t('cardChecklist')}</div>${scenesHtml}</div>
+    ${renderEvalDetail(rec.evaluation)}
+    ${rec.memo     ? `<div class="card"><div class="card-title">${t('cardMemoD')}</div><div class="memo-box">${esc(rec.memo)}</div></div>` : ''}
+    ${rec.techNote ? `<div class="card"><div class="card-title">${t('cardTechD')}</div><div class="memo-box">${esc(rec.techNote)}</div></div>` : ''}`;
+
+  // ── Back ──
+  document.getElementById('d-back').addEventListener('click', () => showView('list'));
+
+  // ── Primary actions ──
+  document.getElementById('d-edit').addEventListener('click', () => populateFormForEdit(rec));
+  document.getElementById('d-md').addEventListener('click',   () => exportMD(rec));
+
+  // ── Copy Summary (action bar) ──
+  document.getElementById('d-copy-sb')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(buildSummaryPreview(rec))
+      .then(() => toast(t('toastCopied'))).catch(() => toast(t('toastCopyFail')));
+  });
+
+  // ── More menu toggle ──
+  const moreBtn  = document.getElementById('d-more');
+  const moreMenu = document.getElementById('d-more-menu');
+  moreBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const opening = !moreMenu.classList.contains('open');
+    moreMenu.classList.toggle('open');
+    moreBtn.classList.toggle('open');
+    if (opening) {
+      setTimeout(() => document.addEventListener('click', () => {
+        moreMenu.classList.remove('open');
+        moreBtn.classList.remove('open');
+      }, { once: true }), 0);
+    }
+  });
+
+  // ── Obsidian (inside More menu) ──
+  document.getElementById('d-ob-toggle').addEventListener('change', e => {
+    obsidianMode = e.target.checked;
+    localStorage.setItem('obsidianMode', obsidianMode);
+    const wrapper = document.getElementById('related-notes-wrapper');
+    if (wrapper && currentDetailRec) {
+      wrapper.innerHTML = renderRelatedNotesHTML(currentDetailRec);
+      attachRelatedNotesListeners(currentDetailRec);
+    }
+  });
+
+  // ── Delete (inside More menu) ──
+  document.getElementById('d-del').addEventListener('click', () => {
+    moreMenu.classList.remove('open');
+    if (!confirm(t('delConfirm'))) return;
+    records = records.filter(r => r.id !== id);
+    save(); updateNavCount(); showView('list'); toast(t('toastDeleted'));
+  });
+
+  // ── Tags / Summary Builder / Related Notes ──
+  attachTagListeners();
+  updateTagPreview();
+  attachRelatedNotesListeners(rec);
+
+  if (summaryItems.length) {
+    attachSummaryListeners(rec);
+    updateSummaryPreview(rec);
+    document.getElementById('sb-copy')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('sb-preview').textContent)
+        .then(() => toast(t('toastCopied'))).catch(() => toast(t('toastCopyFail')));
+    });
+  }
+
+  showView('detail');
+}
+
+function renderEvalDetail(ev) {
+  if (!ev) return '';
+  const rows = getEvalSliders().map(({ key, label, hint }) => {
+    const b = ev[key]?.before ?? 3, a = ev[key]?.after ?? 3;
+    const memo = ev[key]?.memo || '';
+    return `<tr><td>${esc(label)}<br><small style="font-size:10px;color:var(--muted)">${esc(hint)}</small></td><td>${b}</td><td>${a}</td></tr>`
+      + (memo ? `<tr><td colspan="3" style="font-size:12px;color:var(--muted);padding:0 0 8px 2px">↳ ${esc(memo)}</td></tr>` : '');
+  }).join('');
+  const ov  = ev.overall ? overallLabel(ev.overall) : '';
+  const ovc = ev.overall === 'satisfied' ? 'var(--success)' : ev.overall === 'needs-improvement' ? 'var(--danger)' : 'var(--text)';
+  return `<div class="card"><div class="card-title">${t('detailEvalTitle')}</div>
+    <div class="eval-section-hd">${t('detailEvalSelf')}</div>
+    <table class="detail-eval-table"><thead><tr><th></th><th>${t('evalBefore')}</th><th>${t('evalAfter')}</th></tr></thead><tbody>${rows}</tbody></table>
+    ${ev.positive || ev.negative ? `<div class="eval-section-hd" style="margin-top:16px">${t('detailFeedHd')}</div>
+    ${ev.positive ? `<div style="margin-bottom:10px"><div class="ts-label" style="margin-bottom:4px">${t('detailPosFb')}</div><div class="memo-box" style="font-size:13px">${esc(ev.positive)}</div></div>` : ''}
+    ${ev.negative ? `<div><div class="ts-label" style="margin-bottom:4px">${t('detailNegFb')}</div><div class="memo-box" style="font-size:13px">${esc(ev.negative)}</div></div>` : ''}` : ''}
+    ${ov ? `<div style="margin-top:14px;font-size:14px;font-weight:700;color:${ovc}">${t('detailOverall', ov)}</div>` : ''}</div>`;
+}
+
+/* =====================================================
+   EVALUATION
+===================================================== */
+function initEvaluation() {
+  evaluation = {
+    touch:{before:3,after:3,memo:''}, repetition:{before:3,after:3,memo:''}, volume:{before:3,after:3,memo:''},
+    tone_color:{before:3,after:3,memo:''}, intonation:{before:3,after:3,memo:''},
+    dynamics_curve:{before:3,after:3,memo:''}, evenness:{before:3,after:3,memo:''},
+    positive:'', negative:'', overall:''
+  };
+}
+function initEvalListeners() {
+  EVAL_SLIDERS.forEach(({ key }) => {
+    ['before', 'after'].forEach(phase => {
+      const sl = document.getElementById('sl-' + key + '-' + phase);
+      const sv = document.getElementById('sv-' + key + '-' + phase);
+      if (!sl) return;
+      sl.addEventListener('input', () => {
+        if (!evaluation[key]) evaluation[key] = { before:3, after:3, memo:'' };
+        evaluation[key][phase] = +sl.value;
+        if (sv) sv.textContent = sl.value;
+      });
+    });
+    const em = document.getElementById('em-' + key);
+    if (em) em.addEventListener('input', () => {
+      if (!evaluation[key]) evaluation[key] = { before:3, after:3, memo:'' };
+      evaluation[key].memo = em.value;
+    });
+  });
+  document.getElementById('ef-positive').addEventListener('input', e => { evaluation.positive = e.target.value; });
+  document.getElementById('ef-negative').addEventListener('input', e => { evaluation.negative = e.target.value; });
+  document.querySelectorAll('input[name="overall-rating"]').forEach(rb => rb.addEventListener('change', () => { evaluation.overall = rb.value; }));
+}
+function resetEvalForm() {
+  initEvaluation();
+  EVAL_SLIDERS.forEach(({ key }) => {
+    ['before', 'after'].forEach(phase => {
+      const sl = document.getElementById('sl-' + key + '-' + phase);
+      const sv = document.getElementById('sv-' + key + '-' + phase);
+      if (sl) sl.value = 3;
+      if (sv) sv.textContent = '3';
+    });
+    const em = document.getElementById('em-' + key);
+    if (em) em.value = '';
+  });
+  const efp = document.getElementById('ef-positive');
+  const efn = document.getElementById('ef-negative');
+  if (efp) efp.value = '';
+  if (efn) efn.value = '';
+  document.querySelectorAll('input[name="overall-rating"]').forEach(r => r.checked = false);
+}
+
+/* =====================================================
+   EXPORT
+===================================================== */
+/* =====================================================
+   SUMMARY BUILDER
+===================================================== */
+function buildSummaryItems(rec) {
+  const cl = rec.checklist || {};
+  const items = [];
+  // Virtual items from tuning form
+  const tdS = rec.tuningData || {};
+  if (tdS.pitchAfter || tdS.pitchBefore) {
+    const after = tdS.pitchAfter || '—', before = tdS.pitchBefore || '—';
+    const pitchText = (before && before !== after && before !== '—')
+      ? 'Tuning from ' + before + ' to ' + after + 'Hz'
+      : 'Tuning at ' + (after || '?') + 'Hz';
+    items.push({ id: 'tuning.pitch', label: 'Pitch', completed: true, included: true, text: pitchText, userEdited: false });
+  }
+  if (tdS.preCondition)  items.push({ id: 'tuning.pre',  label: '調律前', completed: true, included: true, text: '調律前: '  + tdS.preCondition,  userEdited: false });
+  if (tdS.postComment)   items.push({ id: 'tuning.post', label: '調律後', completed: true, included: true, text: '調律後: '  + tdS.postComment,   userEdited: false });
+  if (tdS.stringPinMemo) items.push({ id: 'tuning.pin',  label: '弦・ピン', completed: true, included: true, text: '弦・ピン: ' + tdS.stringPinMemo, userEdited: false });
+  getScenesFor(rec.type).forEach(scene => {
+    if (scene.type === 'form') return;
+    const ss = cl[scene.id] || {};
+    if (Array.isArray(ss)) return;
+    scene.groups.forEach(g => {
+      if (g.isDkSection && !rec.disklavier) return;
+      g.items.forEach(item => {
+        const st = ss[item.id] || {};
+        const completed = !!st.checked;
+        let defaultText = iLabel(item);
+        if (item.hasMm && st.mm) {
+          const zl = { bass: t('zoneBass'), mid: t('zoneMid'), treble: t('zoneTreble') };
+          const parts = ['bass','mid','treble'].map(z => {
+            const b = st.mm[z]?.before, a = st.mm[z]?.after;
+            return (b || a) ? zl[z] + ' ' + (b||'—') + '→' + (a||'—') + 'mm' : null;
+          }).filter(Boolean);
+          if (parts.length) defaultText += '（' + parts.join(' / ') + '）';
+          if (st.memo) defaultText += ' (' + st.memo + ')';
+        } else if (item.hasMemo && st.memo) {
+          defaultText += ' (' + st.memo + ')';
+        } else if (item.hasClimate && (st.temp || st.humidity)) {
+          const parts = [st.temp && st.temp + '℃', st.humidity && st.humidity + '%'].filter(Boolean);
+          defaultText += ' (' + parts.join(' / ') + ')';
+        }
+        const hasMemo = !!(st.memo || (item.hasMm && st.mm && ['bass','mid','treble'].some(z => st.mm[z]?.before || st.mm[z]?.after)));
+        if (!completed && !hasMemo) return;
+        items.push({ id: scene.id + '.' + item.id, label: iLabel(item), completed, included: true, text: defaultText, userEdited: false });
+      });
+    });
+  });
+  // Evaluation memo items — only added when a memo is present (slider numbers are intentionally excluded)
+  const ev = rec.evaluation || {};
+  EVAL_SLIDERS.forEach(({ key }) => {
+    const entry = ev[key];
+    if (!entry) return;
+    const memo = (entry.memo || '').trim();
+    if (!memo) return;
+    const label = t('sl' + slKey(key));
+    items.push({ id: 'eval.' + key, label, completed: true, included: true, text: label + ' (' + memo + ')', userEdited: false });
+  });
+  return items;
+}
+
+function renderSummaryBuilderHTML() {
+  if (!summaryItems.length) return '';
+  const rows = summaryItems.map((it, i) =>
+    `<div class="sb-item${it.included ? '' : ' sb-excluded'}" data-idx="${i}">` +
+    `<input type="checkbox" class="sb-include" data-idx="${i}"${it.included ? ' checked' : ''}>` +
+    `<input type="text" class="sb-text" data-idx="${i}" value="${it.text.replace(/"/g, '&quot;').replace(/</g, '&lt;')}">` +
+    `<div class="sb-btns">` +
+    `<button class="sb-move" data-idx="${i}" data-dir="up"${i === 0 ? ' disabled' : ''}>↑</button>` +
+    `<button class="sb-move" data-idx="${i}" data-dir="down"${i === summaryItems.length - 1 ? ' disabled' : ''}>↓</button>` +
+    `</div></div>`
+  ).join('');
+  const inc = summaryItems.filter(it => it.included).length;
+  return `<div class="card" id="summary-builder-card">` +
+    `<div class="card-title">Summary Builder</div>` +
+    `<div class="sb-toolbar">` +
+    `<span class="sb-toolbar-info">${t('sbInfo', inc, summaryItems.length)}</span>` +
+    `</div>` +
+    `<div class="sb-list" id="sb-list">${rows}</div>` +
+    `<div class="sb-preview-area">` +
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">` +
+    `<div class="sb-preview-label" style="margin-bottom:0">${t('sbPreview')}</div>` +
+    `<button class="btn-ghost" id="sb-copy" style="font-size:12px;padding:5px 12px">${t('sbCopy')}</button>` +
+    `</div>` +
+    `<div class="sb-preview" id="sb-preview"></div>` +
+    `</div></div>`;
+}
+
+function buildSummaryPreview(rec) {
+  return summaryItems.filter(it => it.included).map(it => '- ' + it.text).join('\n');
+}
+
+function updateSummaryPreview(rec) {
+  const el = document.getElementById('sb-preview');
+  if (el) el.textContent = buildSummaryPreview(rec);
+  const info = document.querySelector('.sb-toolbar-info');
+  if (info) info.textContent = summaryItems.filter(it => it.included).length + ' / ' + summaryItems.length + ' 項目を出力';
+}
+
+function rebuildSummaryList(rec) {
+  const list = document.getElementById('sb-list');
+  if (!list) return;
+  list.innerHTML = summaryItems.map((it, i) =>
+    `<div class="sb-item${it.included ? '' : ' sb-excluded'}" data-idx="${i}">` +
+    `<input type="checkbox" class="sb-include" data-idx="${i}"${it.included ? ' checked' : ''}>` +
+    `<input type="text" class="sb-text" data-idx="${i}" value="${it.text.replace(/"/g, '&quot;').replace(/</g, '&lt;')}">` +
+    `<div class="sb-btns">` +
+    `<button class="sb-move" data-idx="${i}" data-dir="up"${i === 0 ? ' disabled' : ''}>↑</button>` +
+    `<button class="sb-move" data-idx="${i}" data-dir="down"${i === summaryItems.length - 1 ? ' disabled' : ''}>↓</button>` +
+    `</div></div>`
+  ).join('');
+  attachSummaryListeners(rec);
+  updateSummaryPreview(rec);
+}
+
+function attachSummaryListeners(rec) {
+  document.querySelectorAll('.sb-include').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const idx = +e.target.dataset.idx;
+      summaryItems[idx].included = e.target.checked;
+      e.target.closest('.sb-item').classList.toggle('sb-excluded', !e.target.checked);
+      updateSummaryPreview(rec);
+    });
+  });
+  document.querySelectorAll('.sb-text').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const idx = +e.target.dataset.idx;
+      summaryItems[idx].text = e.target.value;
+      summaryItems[idx].userEdited = true;
+      updateSummaryPreview(rec);
+    });
+  });
+  document.querySelectorAll('.sb-move').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const b = e.target;
+      const idx = +b.dataset.idx, dir = b.dataset.dir;
+      const swap = dir === 'up' ? idx - 1 : idx + 1;
+      if (swap < 0 || swap >= summaryItems.length) return;
+      [summaryItems[idx], summaryItems[swap]] = [summaryItems[swap], summaryItems[idx]];
+      rebuildSummaryList(rec);
+    });
+  });
+}
+
+/* =====================================================
+   TAGS
+===================================================== */
+function normalizeTag(raw) {
+  return raw.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+
+function computeAutoTags(rec) {
+  const tags = new Set();
+  const wt = rec.workType;
+  if (wt === 'concert')                              { tags.add('tuning'); tags.add('concert'); }
+  else if (wt === 'regular' || wt === 'pitch-raise') { tags.add('tuning'); }
+  else if (wt === 'maintenance' || wt === 'pre-shipment') { tags.add('inspection'); }
+  else if (wt === 'recording')                       { tags.add('recording'); }
+  const cl = rec.checklist || {};
+  const anyChecked = id => { const ss = cl[id]; return ss && typeof ss === 'object' && !Array.isArray(ss) && Object.values(ss).some(s => s?.checked); };
+  if (anyChecked('inspection')) tags.add('inspection');
+  if (anyChecked('action'))     tags.add('regulation');
+  if (anyChecked('voicing'))    tags.add('voicing');
+  if (rec.evaluation?.positive || rec.evaluation?.negative) tags.add('client_feedback');
+  if (rec.techNote) tags.add('technical_discovery');
+  return [...tags];
+}
+
+function renderTagChips() {
+  const extra = [...activeTags].filter(t => !STANDARD_TAGS.includes(t));
+  return [...STANDARD_TAGS, ...extra].map(tag => {
+    const on = activeTags.has(tag), cust = !STANDARD_TAGS.includes(tag);
+    return `<span class="tag-chip${on ? ' tc-active' : ''}${cust ? ' tc-custom' : ''}" data-tag="${tag}">${tag}${cust ? ' ×' : ''}</span>`;
+  }).join('');
+}
+
+function refreshTagChips() {
+  const el = document.getElementById('tag-chips');
+  if (el) el.innerHTML = renderTagChips();
+}
+
+function updateTagPreview() {
+  const el = document.getElementById('tag-yaml-preview');
+  if (!el) return;
+  const tags = [...activeTags].sort();
+  el.textContent = tags.length ? 'tags:\n' + tags.map(t => '  - ' + t).join('\n') : '（タグなし）';
+}
+
+function renderTagsHTML() {
+  const autoList = computeAutoTags(currentDetailRec || {});
+  const autoInfo = autoList.length ? '自動検出: ' + autoList.join(', ') : '自動検出なし';
+  return `<div class="card" id="tags-card">` +
+    `<div class="card-title">${t('tagTitle')}</div>` +
+    `<div style="font-size:11px;color:var(--muted);margin-bottom:10px">${esc(autoInfo)}</div>` +
+    `<div class="tag-chips" id="tag-chips">${renderTagChips()}</div>` +
+    `<div class="tag-input-row">` +
+    `<input type="text" id="tag-input" placeholder="任意タグを追加… (例: steinway_d)">` +
+    `<button class="btn-ghost" id="tag-add" style="white-space:nowrap;font-size:12px;padding:7px 13px">追加</button>` +
+    `</div>` +
+    `<div class="tag-yaml-preview" id="tag-yaml-preview"></div>` +
+    `</div>`;
+}
+
+function attachTagListeners() {
+  const chips = document.getElementById('tag-chips');
+  if (!chips) return;
+  chips.addEventListener('click', e => {
+    const chip = e.target.closest('.tag-chip');
+    if (!chip) return;
+    const tag = chip.dataset.tag;
+    if (!STANDARD_TAGS.includes(tag)) { activeTags.delete(tag); customTags.delete(tag); }
+    else { activeTags.has(tag) ? activeTags.delete(tag) : activeTags.add(tag); }
+    refreshTagChips();
+    updateTagPreview();
+  });
+  const doAdd = () => {
+    const inp = document.getElementById('tag-input');
+    const tag = normalizeTag(inp.value);
+    if (!tag) return;
+    activeTags.add(tag);
+    if (!STANDARD_TAGS.includes(tag)) customTags.add(tag);
+    inp.value = '';
+    refreshTagChips();
+    updateTagPreview();
+  };
+  document.getElementById('tag-add').addEventListener('click', doAdd);
+  document.getElementById('tag-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+}
+
+/* =====================================================
+   RELATED NOTES
+===================================================== */
+function buildRelatedNotes(rec) {
+  const notes = [];
+  const DV  = q => '```dataview\n' + q + '\n```';
+  // ref() uses the file-safe name so internal links match the actual filename
+  const ref = fn => obsidianMode ? '[[' + fn + ']]' : '"' + fn + '"';
+
+  if (rec.customer) {
+    const n  = rec.customer;                   // display name (untouched)
+    const fn = sanitizeFileName(n);            // file-safe name
+    const fm = ['---', 'type: client', 'name: ' + n];
+    if (rec.clientType) fm.push('client_type: ' + rec.clientType);
+    fm.push('tags:\n  - client', '---');
+    const content = fm.join('\n') + '\n\n# ' + n + '\n\n## Related Logs\n\n' +
+      DV('LIST FROM "20_Tuning/Sessions"\nWHERE client = ' + ref(fn) + '\nSORT date DESC');
+    notes.push({ type: 'client', label: 'Client', name: n, path: 'Clients/' + fn + '.md', content });
+  }
+
+  if (rec.location) {
+    const n  = rec.location;
+    const fn = sanitizeFileName(n);
+    const content = '---\ntype: venue\nname: ' + n + '\ntags:\n  - venue\n---\n\n# ' + n +
+      '\n\n## Related Logs\n\n' + DV('LIST FROM "20_Tuning/Sessions"\nWHERE venue = ' + ref(fn) + '\nSORT date DESC');
+    notes.push({ type: 'venue', label: 'Venue', name: n, path: 'Venues/' + fn + '.md', content });
+  }
+
+  const assetStr = [rec.maker, rec.model, rec.serial].filter(Boolean).join(' ');
+  if (assetStr) {
+    const n  = assetStr;
+    const fn = sanitizeFileName(n);
+    const fm = ['---', 'type: asset', 'asset_type: piano'];
+    if (rec.maker)  fm.push('make: ' + rec.maker);
+    if (rec.model)  fm.push('model: ' + rec.model);
+    if (rec.serial) fm.push('serial_number: ' + rec.serial);
+    fm.push('tags:\n  - asset\n  - piano', '---');
+    const content = fm.join('\n') + '\n\n# ' + n + '\n\n## Related Logs\n\n' +
+      DV('LIST FROM "20_Tuning/Sessions"\nWHERE asset = ' + ref(fn) + '\nSORT date DESC');
+    notes.push({ type: 'asset', label: 'Asset', name: n, path: 'Assets/' + fn + '.md', content });
+  }
+
+  return notes;
+}
+
+function renderRelatedNotesHTML(rec) {
+  const notes = buildRelatedNotes(rec);
+  if (!notes.length) return '';
+  const escRaw = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const rows = notes.map((note, i) =>
+    `<div class="rn-note">` +
+    `<div class="rn-note-header">` +
+    `<div><div class="rn-note-title">${esc(note.label)} — ${esc(note.name)}</div>` +
+    `<div class="rn-note-path">${esc(note.path)}</div></div>` +
+    `<button class="btn-ghost rn-copy" data-idx="${i}" style="font-size:12px;padding:5px 12px;flex-shrink:0">コピー</button>` +
+    `</div>` +
+    `<div class="rn-preview">${escRaw(note.content)}</div>` +
+    `</div>`
+  ).join('');
+  return `<div class="card" id="related-notes-section">` +
+    `<div class="card-title">${t('rnTitle')}</div>` +
+    `<div class="rn-toolbar">` +
+    `<span class="sb-toolbar-info">${t('rnInfo', notes.length, obsidianMode)}</span>` +
+    `<button class="btn-ghost" id="rn-copy-all" style="font-size:12px;padding:6px 12px">${lang === 'en' ? 'Copy All' : 'すべてコピー'}</button>` +
+    `</div>` +
+    `<div>${rows}</div>` +
+    `</div>`;
+}
+
+function attachRelatedNotesListeners(rec) {
+  const notes = buildRelatedNotes(rec);
+  if (!notes.length) return;
+  const all = notes.map(n => '# File: ' + n.path + '\n\n' + n.content).join('\n\n---\n\n');
+  const copyAll = document.getElementById('rn-copy-all');
+  if (copyAll) copyAll.addEventListener('click', () =>
+    navigator.clipboard.writeText(all).then(() => toast(t('toastCopied'))).catch(() => toast(t('toastCopyFail')))
+  );
+  document.querySelectorAll('.rn-copy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = notes[+btn.dataset.idx];
+      if (n) navigator.clipboard.writeText(n.content).then(() => toast(t('toastCopied'))).catch(() => toast(t('toastCopyFail')));
+    });
+  });
+}
+
+/* =====================================================
+   EDIT MODE
+===================================================== */
+function restoreChecklistUI() {
+  getScenes().forEach(scene => {
+    if (scene.type === 'form') return;
+    const ss = checklist[scene.id] || {};
+    scene.groups.forEach(g => g.items.forEach(item => {
+      const st = ss[item.id];
+      if (!st) return;
+      const wrapper = document.getElementById('iw-' + scene.id + '-' + item.id);
+      if (!wrapper) return;
+      const cb = wrapper.querySelector('input[type="checkbox"]');
+      if (cb && st.checked) { cb.checked = true; cb.closest('.checklist-item').classList.add('checked'); }
+      if (item.hasMemo && st.memo) { const m = wrapper.querySelector('.item-memo'); if (m) m.value = st.memo; }
+      if (item.hasClimate) {
+        const ci = wrapper.querySelectorAll('.climate-input');
+        if (ci[0] && st.temp) ci[0].value = st.temp;
+        if (ci[1] && st.humidity) ci[1].value = st.humidity;
+      }
+      if (item.hasMm && st.mm) {
+        wrapper.querySelectorAll('.mm-input').forEach(inp => { const v = st.mm[inp.dataset.zone]?.[inp.dataset.phase]; if (v) inp.value = v; });
+        const mm = wrapper.querySelector('.item-memo'); if (mm && st.memo) mm.value = st.memo;
+      }
+    }));
+    updateProgress(scene);
+  });
+}
+
+function restoreTuningUI() {
+  const td = tuningData;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('tf-pitch-before', td.pitchBefore || '440');
+  set('tf-pitch-after',  td.pitchAfter  || '440');
+  set('tf-pre',  td.preCondition  || '');
+  set('tf-post', td.postComment   || '');
+  set('tf-pin',  td.stringPinMemo || '');
+  updateTuningProgress();
+}
+
+function restoreEvalForm() {
+  EVAL_SLIDERS.forEach(({ key }) => {
+    ['before', 'after'].forEach(phase => {
+      const sl = document.getElementById('sl-' + key + '-' + phase);
+      const sv = document.getElementById('sv-' + key + '-' + phase);
+      const val = evaluation[key]?.[phase] ?? 3;
+      if (sl) sl.value = val;
+      if (sv) sv.textContent = val;
+    });
+    const em = document.getElementById('em-' + key); if (em) em.value = evaluation[key]?.memo || '';
+  });
+  const efp = document.getElementById('ef-positive'), efn = document.getElementById('ef-negative');
+  if (efp) efp.value = evaluation.positive || '';
+  if (efn) efn.value = evaluation.negative || '';
+  if (evaluation.overall) { const rb = document.querySelector(`input[name="overall-rating"][value="${evaluation.overall}"]`); if (rb) rb.checked = true; }
+  else document.querySelectorAll('input[name="overall-rating"]').forEach(r => r.checked = false);
+}
+
+function populateFormForEdit(rec) {
+  editingId = rec.id;
+  document.getElementById('f-date').value = rec.date || todayStr();
+  document.querySelectorAll('input[name="piano-type"]').forEach(r => { r.checked = r.value === rec.type; });
+  currentPianoType = rec.type || 'grand';
+  document.getElementById('f-maker').value   = rec.maker    || '';
+  document.getElementById('f-model').value   = rec.model    || '';
+  document.getElementById('f-serial').value  = rec.serial   || '';
+  document.getElementById('f-last-tuned').value = rec.lastTuned || '';
+  document.getElementById('f-work-type').value  = rec.workType  || '';
+  document.getElementById('f-customer').value   = rec.customer  || '';
+  document.getElementById('f-client-type').value = rec.clientType || 'artist';
+  document.getElementById('f-location').value = rec.location || '';
+  document.getElementById('f-staff').value    = rec.staff    || 'Shinya Maeda';
+  document.getElementById('f-memo').value     = rec.memo     || '';
+  document.getElementById('f-tech-note').value = rec.techNote || '';
+  document.getElementById('f-disklavier').checked = !!rec.disklavier;
+  currentWorkType = rec.workType || '';
+  isDK = !!rec.disklavier;
+  checklist  = JSON.parse(JSON.stringify(rec.checklist  || {}));
+  // Ensure every current scene item has an entry — saved records may lack items
+  // added after the record was created, causing silent write failures in listeners
+  getScenes().forEach(s => {
+    if (s.type === 'form') return;
+    if (!checklist[s.id]) checklist[s.id] = {};
+    s.groups.forEach(g => g.items.forEach(item => {
+      if (!checklist[s.id][item.id]) {
+        const st = { checked: false };
+        if (item.hasMemo)    st.memo = '';
+        if (item.hasClimate) { st.temp = ''; st.humidity = ''; }
+        if (item.hasMm)      { st.mm = { bass:{before:'',after:''}, mid:{before:'',after:''}, treble:{before:'',after:''} }; st.memo = ''; }
+        checklist[s.id][item.id] = st;
+      }
+    }));
+  });
+  tuningData = JSON.parse(JSON.stringify(rec.tuningData || { pitchBefore:'440', pitchAfter:'440', preCondition:'', postComment:'', stringPinMemo:'' }));
+  evaluation = migrateEvaluation(rec.evaluation);
+  buildScenes();
+  restoreChecklistUI();
+  restoreTuningUI();
+  document.getElementById('btn-save').textContent = t('btnUpdate');
+  showView('new');
+  restoreEvalForm();   // called AFTER showView so the inputs are visible when values are set
+  window.scrollTo(0, 0);
+}
+
+function exportJSON() {
+  if (!records.length) { toast(t('toastImportFail')); return; }
+  const data = { app: 'resolog', version: 3, exportedAt: new Date().toISOString(), records };
+  dlBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+    'resolog-backup-' + todayStr() + '.json');
+  toast(t('toastJsonExported'));
+}
+
+function importJSON(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data   = JSON.parse(e.target.result);
+      const incoming = Array.isArray(data.records) ? data.records
+                     : Array.isArray(data)          ? data
+                     : null;
+      if (!incoming || !incoming.length) { toast(t('toastImportFail')); return; }
+      if (!confirm(t('importConfirm', incoming.length))) return;
+      // Merge by ID — incoming overwrites existing on collision
+      const map = new Map(records.map(r => [r.id, r]));
+      incoming.forEach(r => { if (r && r.id) map.set(r.id, r); });
+      records = [...map.values()].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      save(); updateNavCount(); renderList();
+      toast(t('toastImported', incoming.length));
+    } catch { toast(t('toastImportFail')); }
+  };
+  reader.readAsText(file);
+}
+
+function exportCSV() {
+  if (!records.length) { toast('エクスポートする記録がありません'); return; }
+  const hdrs = ['日付','ピアノ種別','メーカー','モデル名','製造番号','前回調律日','作業種別','顧客区分','アーティスト名','会場名','担当者','Disklavier','調律前ピッチ(Hz)','調律後ピッチ(Hz)','調律前の状態','調律後のコメント','弦・ピンメモ','完了率(%)','保存日時'];
+  const rows = records.map(rec => {
+    const td = rec.tuningData || {};
+    return [rec.date||'', PIANO_LABELS[rec.type]||rec.type||'', rec.maker||'', rec.model||'', rec.serial||'', rec.lastTuned||'',
+      WORK_TYPE_LABELS[rec.workType]||rec.workType||'', rec.clientType||'', rec.customer||'', rec.location||'', rec.staff||'',
+      rec.disklavier ? '搭載' : '', td.pitchBefore||'', td.pitchAfter||'',
+      td.preCondition||'', td.postComment||'', td.stringPinMemo||'', calcPct(rec)+'', rec.savedAt||'',
+    ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
+  });
+  const csv  = [hdrs.map(h => '"' + h + '"').join(','), ...rows.map(r => r.join(','))].join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  dlBlob(blob, 'choritsu_' + todayStr() + '.csv');
+  toast('CSVをダウンロードしました');
+}
+
+function exportMD(rec) {
+  const td = rec.tuningData || {};
+  const cl = rec.checklist  || {};
+  const ev = rec.evaluation;
+  const san = s => (s || '').trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_');
+
+  // --- Pass 1: pre-compute completion stats & climate ---
+  let totalDone = 0, totalAll = 0;
+  let firstTemp = null, firstHumidity = null;
+  getScenesFor(rec.type).forEach(scene => {
+    if (scene.type === 'form') return;
+    const ss = cl[scene.id] || {};
+    if (Array.isArray(ss)) return;
+    scene.groups.forEach(g => {
+      if (g.isDkSection && !rec.disklavier) return;
+      g.items.forEach(item => {
+        totalAll++;
+        const st = ss[item.id] || {};
+        if (st.checked) totalDone++;
+        if (item.hasClimate && firstTemp === null && (st.temp || st.humidity)) {
+          firstTemp     = st.temp     ? +st.temp     : null;
+          firstHumidity = st.humidity ? +st.humidity : null;
+        }
+      });
+    });
+  });
+  const completionPct = totalAll > 0 ? Math.round(totalDone / totalAll * 100) : null;
+
+  // --- YAML frontmatter ---
+  // obsLink uses sanitizeFileName so wikilink targets match the actual filenames
+  const obsLink = v => obsidianMode ? '"[[' + sanitizeFileName(v) + ']]"' : v;
+  const assetStr = [rec.maker, rec.model, rec.serial].filter(Boolean).join(' ');
+
+  let md = '---\n';
+  md += 'date: ' + rec.date + '\n';
+  if (rec.customer) { md += 'client: ' + obsLink(rec.customer) + '\nclient_type: ' + (rec.clientType || 'artist') + '\n'; }
+  if (rec.location) md += 'venue: ' + obsLink(rec.location) + '\n';
+  if (assetStr)     md += 'asset: ' + obsLink(assetStr) + '\n';
+  md += 'asset_type: piano\n';
+  const pt = PIANO_TYPE_KEYS[rec.type] || rec.type || '';
+  if (pt)         md += 'piano_type: ' + pt + '\n';
+  if (rec.maker)  md += 'piano_make: ' + rec.maker + '\n';
+  if (rec.model)  md += 'piano_model: ' + rec.model + '\n';
+  if (rec.serial) md += 'serial_number: ' + rec.serial + '\n';
+  if (rec.staff)  md += 'staff: ' + rec.staff + '\n';
+  if (rec.workType) md += 'work_type: ' + (WORK_TYPE_KEYS[rec.workType] || rec.workType) + '\n';
+  if (ev?.overall && ev.overall !== 'none')
+    md += 'overall_rating: ' + (ev.overall === 'needs-improvement' ? 'needs_improvement' : ev.overall) + '\n';
+  if (firstTemp     !== null) md += 'temperature_c: '    + firstTemp     + '\n';
+  if (firstHumidity !== null) md += 'humidity_percent: ' + firstHumidity + '\n';
+  if (completionPct !== null) {
+    md += 'completion_count: '   + totalDone      + '\n';
+    md += 'completion_total: '   + totalAll       + '\n';
+    md += 'completion_percent: ' + completionPct  + '\n';
+  }
+  const finalTags = activeTags.size
+    ? [...activeTags].sort()
+    : computeAutoTags(rec); // fallback if exported without opening detail view
+  if (finalTags.length) md += 'tags:\n' + finalTags.map(t => '  - ' + t).join('\n') + '\n';
+  md += '---\n\n';
+
+  // --- 作業内容 ---
+  md += t('mdWork') + '\n';
+
+  // --- Summary Builder items (or fallback auto-generation) ---
+  if (summaryItems.length) {
+    summaryItems.filter(it => it.included).forEach(it => { md += '- ' + it.text + '\n'; });
+  } else {
+    // ピッチ
+    if (td.pitchAfter || td.pitchBefore) {
+      const after = td.pitchAfter || '—', before = td.pitchBefore || '—';
+      md += before !== after
+        ? '- Tuning at ' + after + 'Hz（前: ' + before + 'Hz）\n'
+        : '- Tuning at ' + after + 'Hz\n';
+    }
+    if (td.preCondition)  md += '- 調律前: '  + td.preCondition  + '\n';
+    if (td.postComment)   md += '- 調律後: '  + td.postComment   + '\n';
+    if (td.stringPinMemo) md += '- 弦・ピン: ' + td.stringPinMemo + '\n';
+    // Checklist items
+    getScenesFor(rec.type).forEach(scene => {
+      if (scene.type === 'form') return;
+      const ss = cl[scene.id] || {};
+      if (Array.isArray(ss)) return;
+      scene.groups.forEach(g => {
+        if (g.isDkSection && !rec.disklavier) return;
+        g.items.forEach(item => {
+          const st = ss[item.id] || {};
+          if (!st.checked) return;
+          if (item.hasMm && st.mm) {
+            const zoneLabels = { bass: t('zoneBass'), mid: t('zoneMid'), treble: t('zoneTreble') };
+            const parts = ['bass','mid','treble'].map(z => {
+              const b = st.mm[z]?.before, a = st.mm[z]?.after;
+              return (b || a) ? zoneLabels[z] + ' ' + (b||'—') + '→' + (a||'—') + 'mm' : null;
+            }).filter(Boolean);
+            md += '- ' + iLabel(item) + (parts.length ? '（' + parts.join(' / ') + '）' : '') + '\n';
+            if (st.memo) md += '  - ' + st.memo + '\n';
+          } else {
+            md += '- ' + iLabel(item) + '\n';
+            if (item.hasMemo && st.memo) md += '  - ' + st.memo + '\n';
+            if (item.hasClimate && (st.temp || st.humidity))
+              md += '  - ' + [st.temp && st.temp + '℃', st.humidity && st.humidity + '%'].filter(Boolean).join(' / ') + '\n';
+          }
+        });
+      });
+    });
+  }
+  if (completionPct !== null) md += '\n' + t('mdCompletion', totalDone, totalAll) + '\n';
+
+  // 評価スライダー
+  if (ev) {
+    md += '\n';
+    getEvalSliders().forEach(({ key, label }) => {
+      const b = ev[key]?.before ?? 3, a = ev[key]?.after ?? 3;
+      const memo = ev[key]?.memo || '';
+      md += '- ' + label + ': ' + b + ' → ' + a + (memo ? '（' + memo + '）' : '') + '\n';
+    });
+    const ov = ev.overall ? '　' + overallLabel(ev.overall) : '';
+    if (ev.positive || ev.negative)
+      md += '\n> ' + [ev.positive, ev.negative].filter(Boolean).join('　') + (ov || '') + '\n';
+  }
+
+  // --- 個人メモ・気づき ---
+  if (rec.memo) md += '\n' + t('mdMemo') + '\n' + rec.memo + '\n';
+
+  // --- 技術的発見 (各行を Obsidian 内部リンクとして出力) ---
+  if (rec.techNote) {
+    const techLines = rec.techNote.split('\n').map(l => l.trim()).filter(Boolean);
+    if (techLines.length) {
+      md += '\n' + t('mdTech') + '\n' +
+        techLines.map(l => '- [[' + sanitizeFileName(l) + ']]').join('\n') + '\n';
+    }
+  }
+
+  md += '\n---\n*' + (rec.savedAt || '') + '*\n';
+
+  const fname = [rec.date, san(rec.location), san(rec.maker), san(rec.serial)].filter(Boolean).join('_') + '.md';
+  dlBlob(new Blob([md], { type: 'text/markdown;charset=utf-8;' }), fname);
+  toast(t('toastMd'));
+}
+
+function dlBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* =====================================================
+   UTILITIES
+===================================================== */
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function esc(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+}
+/**
+ * Sanitize a display string for use as an Obsidian file name or internal link.
+ * Characters that are illegal / special on file systems or in Obsidian wikilinks
+ * are replaced or removed.  The original display string is left untouched.
+ */
+function sanitizeFileName(s) {
+  return String(s)
+    .replace(/[/\\]/g, '-')   // path separators → hyphen
+    .replace(/:/g,     '-')   // colon → hyphen
+    .replace(/[*?"<>]/g, '')  // wildcards / quotes → remove
+    .replace(/\|/g,    '-')   // pipe → hyphen
+    .replace(/\s+/g,   ' ')   // collapse whitespace
+    .trim();
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+/* =====================================================
+   EVENT LISTENERS
+===================================================== */
+document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+
+document.querySelectorAll('input[name="piano-type"]').forEach(rb => {
+  rb.addEventListener('change', () => {
+    if (currentPianoType === rb.value) return;
+    currentPianoType = rb.value;
+    initChecklist(); buildScenes();
+  });
+});
+
+document.getElementById('f-work-type').addEventListener('change', e => {
+  currentWorkType = e.target.value; updateHighlights();
+});
+
+document.getElementById('f-disklavier').addEventListener('change', e => {
+  isDK = e.target.checked; updateDkVisibility();
+});
+
+/* =====================================================
+   LANGUAGE TOGGLE
+===================================================== */
+document.getElementById('lang-btn').addEventListener('click', () => {
+  lang = lang === 'ja' ? 'en' : 'ja';
+  localStorage.setItem('lang', lang);
+  applyI18n();
+  // re-render dynamic views if currently shown
+  const listView = document.getElementById('view-list');
+  if (listView.classList.contains('active')) renderList();
+  const detailView = document.getElementById('view-detail');
+  if (detailView.classList.contains('active') && currentDetailRec) showDetail(currentDetailRec.id);
+});
+
+/* =====================================================
+   BOOT
+===================================================== */
+load();
+initChecklist();
+initEvaluation();
+initEvalListeners();
+document.getElementById('f-date').value = todayStr();
+document.getElementById('f-staff').value = 'Shinya Maeda';
+updateNavCount();
+applyI18n();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <!-- Full-bleed background (no rx — OS applies mask) -->
+  <rect width="512" height="512" fill="#181D36"/>
+
+  <!-- Notebook frame shadow -->
+  <rect x="90" y="67" width="310" height="368" rx="18" fill="#101528"/>
+
+  <!-- Notebook frame -->
+  <rect x="86" y="63" width="310" height="368" rx="18"
+        fill="#181D36" stroke="#C4A87A" stroke-width="2.2"/>
+
+  <!-- Binding holes -->
+  <ellipse cx="86" cy="168" rx="13" ry="8" fill="#181D36" stroke="#C4A87A" stroke-width="2"/>
+  <ellipse cx="86" cy="247" rx="13" ry="8" fill="#181D36" stroke="#C4A87A" stroke-width="2"/>
+  <ellipse cx="86" cy="326" rx="13" ry="8" fill="#181D36" stroke="#C4A87A" stroke-width="2"/>
+
+  <!-- Cursive "Re" -->
+  <text x="172" y="308"
+        font-family="'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif"
+        font-style="italic"
+        font-weight="300"
+        font-size="168"
+        fill="#C4A87A">Re</text>
+
+  <!-- Diagonal accent + dot -->
+  <line x1="332" y1="265" x2="368" y2="200"
+        stroke="#C4A87A" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="371" cy="195" r="6" fill="#C4A87A"/>
+
+  <!-- "Resolog" inside frame bottom -->
+  <text x="241" y="400"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="26" font-weight="500" letter-spacing="7"
+        fill="#C4A87A" text-anchor="middle">Resolog</text>
+
+</svg>

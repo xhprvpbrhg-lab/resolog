@@ -1,0 +1,23 @@
+{
+  "name": "調律師作業記録",
+  "short_name": "Resolog",
+  "description": "ピアノ調律師向け作業記録アプリ",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#181D36",
+  "theme_color": "#181D36",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
