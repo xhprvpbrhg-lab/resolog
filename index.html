@@ -787,7 +787,7 @@ const SCENES_GP = [
         { id: 'longHinge',    label: 'ロングヒンジ',                 enLabel: 'Long Hinges',               tags: ['maintenance'] },
         { id: 'lidStick',     label: '屋根突き上げ棒',               enLabel: 'Lid Prop',                  tags: ['maintenance'] },
         { id: 'upperBar',     label: '上口棒・反り止め桟',           enLabel: 'Lock Slip / Anti-Warp Rail', tags: ['maintenance'] },
-        { id: 'legBolt',      label: '脚柱ボルト・キャスターナット', enLabel: 'Leg Bolt / Caster Nut',      tags: ['maintenance'], cfxOnly: true },
+        { id: 'legBolt',      label: '脚柱ボルト・キャスターナット（CFXのみ）', enLabel: 'Leg Bolt / Caster Nut (CFX only)', tags: ['maintenance'] },
         { id: 'pedalBoxBolt', label: 'ペダル箱ボルトナット',         enLabel: 'Pedal Lyre Bolts / Nuts',   tags: ['maintenance'] },
         { id: 'keyLid',       label: '鍵盤蓋',                       enLabel: 'Fall Board',                tags: ['maintenance'] },
         { id: 'musicDesk',    label: '譜面台',                       enLabel: 'Music Desk',                tags: ['maintenance'] },
@@ -972,8 +972,7 @@ function iLabel(item)       { return (lang === 'en' && item.enLabel) ? item.enLa
 function gLabel(group)      { return (lang === 'en' && group.enLabel) ? group.enLabel : group.label; }
 function sName(scene)       { return (lang === 'en' && scene.enName) ? scene.enName : scene.name; }
 function fmtDate(str)       { if (!str) return ''; const [y,m,d] = str.split('-'); return t('fmtDate', y, m, d); }
-function isCfxModel(model)        { return (model || '').toUpperCase().includes('CFX'); }
-function skipCfxItem(item, model) { return !!item.cfxOnly && !isCfxModel(model); }
+
 function load()  { try { records = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { records = []; } }
 function save()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
 
@@ -1057,18 +1056,15 @@ function buildChecklistPanel(panel, scene) {
     section.dataset.sid = scene.id;
     section.dataset.gi  = gi;
 
-    const cfxModel = document.getElementById('f-model')?.value || '';
-    const visibleItems = group.items.filter(i => !skipCfxItem(i, cfxModel));
-
     if (group.label) {
       const hd = document.createElement('div');
       hd.className = 'group-header';
       hd.id = 'gh-' + scene.id + '-' + gi;
-      hd.innerHTML = `<span>${esc(gLabel(group))}<span class="gh-dot">🔵</span></span><span class="gh-count" id="gc-${scene.id}-${gi}">0 / ${visibleItems.length}</span>`;
+      hd.innerHTML = `<span>${esc(gLabel(group))}<span class="gh-dot">🔵</span></span><span class="gh-count" id="gc-${scene.id}-${gi}">0 / ${group.items.length}</span>`;
       section.appendChild(hd);
     }
 
-    visibleItems.forEach(item => {
+    group.items.forEach(item => {
       const wrapper = document.createElement('div');
       wrapper.className = 'item-wrapper';
       wrapper.id = 'iw-' + scene.id + '-' + item.id;
@@ -1144,11 +1140,10 @@ function buildChecklistPanel(panel, scene) {
 }
 
 function countItems(scene, respectDK) {
-  const model = document.getElementById('f-model')?.value || '';
   let n = 0;
   scene.groups.forEach(g => {
     if (g.isDkSection && respectDK && !isDK) return;
-    g.items.forEach(i => { if (!skipCfxItem(i, model)) n++; });
+    n += g.items.length;
   });
   return n;
 }
@@ -1156,11 +1151,9 @@ function countItems(scene, respectDK) {
 function updateGroupCount(sceneId, gi, group) {
   const el = document.getElementById('gc-' + sceneId + '-' + gi);
   if (!el) return;
-  const model   = document.getElementById('f-model')?.value || '';
-  const visible = group.items.filter(i => !skipCfxItem(i, model));
-  const st      = checklist[sceneId] || {};
-  const done    = visible.filter(i => st[i.id]?.checked).length;
-  el.textContent = done + ' / ' + visible.length;
+  const st   = checklist[sceneId] || {};
+  const done = group.items.filter(i => st[i.id]?.checked).length;
+  el.textContent = done + ' / ' + group.items.length;
 }
 
 function buildTuningPanel(panel) {
@@ -1203,15 +1196,11 @@ function switchScene(sceneId) {
 }
 
 function updateProgress(scene) {
-  const model = document.getElementById('f-model')?.value || '';
   const st = checklist[scene.id] || {};
   let done = 0, total = 0;
   scene.groups.forEach(g => {
     if (g.isDkSection && !isDK) return;
-    g.items.forEach(item => {
-      if (skipCfxItem(item, model)) return;
-      total++; if (st[item.id]?.checked) done++;
-    });
+    g.items.forEach(item => { total++; if (st[item.id]?.checked) done++; });
   });
   const pct = total === 0 ? 0 : Math.round(done / total * 100);
   const pf = document.getElementById('pf-' + scene.id);
@@ -1407,10 +1396,7 @@ function calcPct(rec) {
     if (Array.isArray(st)) { st.forEach(v => { total++; if (v) done++; }); return; }
     scene.groups.forEach(g => {
       if (g.isDkSection && !rec.disklavier) return;
-      g.items.forEach(item => {
-        if (skipCfxItem(item, rec.model)) return;
-        total++; if (st[item.id]?.checked) done++;
-      });
+      g.items.forEach(item => { total++; if (st[item.id]?.checked) done++; });
     });
   });
   return total === 0 ? 0 : Math.round(done / total * 100);
@@ -1457,10 +1443,7 @@ function showDetail(id) {
     let sceneDone = 0, sceneTotal = 0;
     scene.groups.forEach(g => {
       if (g.isDkSection && !rec.disklavier) return;
-      g.items.forEach(item => {
-        if (skipCfxItem(item, rec.model)) return;
-        sceneTotal++; if (sceneState[item.id]?.checked) sceneDone++;
-      });
+      g.items.forEach(item => { sceneTotal++; if (sceneState[item.id]?.checked) sceneDone++; });
     });
 
     let groupsHtml = '';
@@ -1471,12 +1454,11 @@ function showDetail(id) {
       const anyMatch = group.items.some(item => (item.tags || []).includes(effectiveWt));
       const isHl = !!(wt && anyMatch);
 
-      const visItems = group.items.filter(item => !skipCfxItem(item, rec.model));
       if (group.label) {
-        const gDone  = visItems.filter(item => sceneState[item.id]?.checked).length;
-        groupsHtml += `<div class="detail-group-hd${isHl ? ' hl' : ''}"><span>${esc(gLabel(group))}${isHl ? ' 🔵' : ''}</span><span>${gDone} / ${visItems.length}</span></div>`;
+        const gDone  = group.items.filter(item => sceneState[item.id]?.checked).length;
+        groupsHtml += `<div class="detail-group-hd${isHl ? ' hl' : ''}"><span>${esc(gLabel(group))}${isHl ? ' 🔵' : ''}</span><span>${gDone} / ${group.items.length}</span></div>`;
       }
-      visItems.forEach(item => {
+      group.items.forEach(item => {
         const st      = sceneState[item.id] || {};
         const checked = !!st.checked;
         let extra = '';
@@ -1739,7 +1721,6 @@ function buildSummaryItems(rec) {
     scene.groups.forEach(g => {
       if (g.isDkSection && !rec.disklavier) return;
       g.items.forEach(item => {
-        if (skipCfxItem(item, rec.model)) return;
         const st = ss[item.id] || {};
         const completed = !!st.checked;
         let defaultText = iLabel(item);
@@ -2113,7 +2094,6 @@ function populateFormForEdit(rec) {
     if (s.type === 'form') return;
     if (!checklist[s.id]) checklist[s.id] = {};
     s.groups.forEach(g => g.items.forEach(item => {
-      if (skipCfxItem(item, rec.model)) return;
       if (!checklist[s.id][item.id]) {
         const st = { checked: false };
         if (item.hasMemo)    st.memo = '';
@@ -2196,7 +2176,6 @@ function exportMD(rec) {
     scene.groups.forEach(g => {
       if (g.isDkSection && !rec.disklavier) return;
       g.items.forEach(item => {
-        if (skipCfxItem(item, rec.model)) return;
         totalAll++;
         const st = ss[item.id] || {};
         if (st.checked) totalDone++;
@@ -2267,7 +2246,6 @@ function exportMD(rec) {
       scene.groups.forEach(g => {
         if (g.isDkSection && !rec.disklavier) return;
         g.items.forEach(item => {
-          if (skipCfxItem(item, rec.model)) return;
           const st = ss[item.id] || {};
           if (!st.checked) return;
           if (item.hasMm && st.mm) {
@@ -2379,10 +2357,6 @@ document.getElementById('f-work-type').addEventListener('change', e => {
 
 document.getElementById('f-disklavier').addEventListener('change', e => {
   isDK = e.target.checked; updateDkVisibility();
-});
-// モデル名が変わったとき cfxOnly 項目の表示を更新
-document.getElementById('f-model').addEventListener('change', () => {
-  if (currentPianoType) buildScenes();
 });
 
 /* =====================================================
