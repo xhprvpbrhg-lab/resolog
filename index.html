@@ -1720,8 +1720,20 @@ function buildSummaryItems(rec) {
     if (scene.type === 'form') return;
     const ss = cl[scene.id] || {};
     if (Array.isArray(ss)) return;
-    scene.groups.forEach(g => {
+    scene.groups.forEach((g, gi) => {
       if (g.isDkSection && !rec.disklavier) return;
+
+      // ネジ増し締めグループ → 個別項目ではなくグループ単位でSummaryに追加
+      if (g.enLabel === 'Tightening Screws') {
+        const anyChecked = g.items.some(i => (ss[i.id] || {}).checked);
+        if (!anyChecked) return;
+        const memos = g.items.map(i => (ss[i.id] || {}).memo || '').filter(Boolean);
+        const label  = gLabel(g);
+        const text   = memos.length ? label + ' (' + memos.join('; ') + ')' : label;
+        items.push({ id: scene.id + '.tightening.' + gi, label, completed: true, included: true, text, userEdited: false });
+        return;
+      }
+
       g.items.forEach(item => {
         const st = ss[item.id] || {};
         const completed = !!st.checked;
