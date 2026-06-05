@@ -1889,12 +1889,10 @@ function computeAutoTags(rec) {
   const wt = rec.workType;
   if (wt === 'concert')                              { tags.add('tuning'); tags.add('concert'); }
   else if (wt === 'regular' || wt === 'pitch-raise') { tags.add('tuning'); }
-  else if (wt === 'maintenance' || wt === 'pre-shipment') { tags.add('inspection'); }
   else if (wt === 'recording')                       { tags.add('recording'); }
   else if (wt === 'inspection')                      { tags.add('inspection'); }
   const cl = rec.checklist || {};
   const anyChecked = id => { const ss = cl[id]; return ss && typeof ss === 'object' && !Array.isArray(ss) && Object.values(ss).some(s => s?.checked); };
-  if (anyChecked('inspection')) tags.add('inspection');
   if (anyChecked('action'))     tags.add('regulation');
   if (anyChecked('voicing'))    tags.add('voicing');
   if (rec.evaluation?.positive || rec.evaluation?.negative) tags.add('client_feedback');
