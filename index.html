@@ -123,7 +123,11 @@
     .date-badge .dd { font-size: 24px; font-weight: 800; line-height: 1.1; }
     .record-info { flex: 1; min-width: 0; }
     .record-title { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .record-meta { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .record-meta { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .rc-instrument { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+    .rc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .rc-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: rgba(24,29,54,.07); color: var(--primary); border: 1px solid rgba(24,29,54,.13); letter-spacing: .02em; white-space: nowrap; }
+    .rc-tag-more { background: rgba(196,168,122,.13); color: var(--accent); border-color: rgba(196,168,122,.35); }
     .completion-badge { flex-shrink: 0; text-align: right; }
     .completion-pct { font-size: 20px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
     .completion-lbl { font-size: 10px; color: var(--muted); }
@@ -1323,19 +1327,39 @@ function renderList() {
   con.innerHTML = '';
   let filtered = ft ? records.filter(r => r.workType === ft) : records;
   if (q) {
-    filtered = filtered.filter(r =>
-      [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.memo]
-        .filter(Boolean).join(' ').toLowerCase().includes(q)
-    );
+    filtered = filtered.filter(r => {
+      const tags = computeAutoTags(r).join(' ');
+      return [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
+        .filter(Boolean).join(' ').toLowerCase().includes(q);
+    });
   }
   document.getElementById('list-heading').textContent = t('listHeading', filtered.length);
   if (!filtered.length) {
     con.innerHTML = `<div class="empty-state"><h3>${t('listEmpty')}</h3><p>${t('listEmptySub')}</p></div>`;
     return;
   }
+  const MAX_TAGS = 3;
   filtered.forEach(rec => {
     const [y, m, d] = rec.date.split('-');
-    const pct  = calcPct(rec);
+    const pct = calcPct(rec);
+
+    // 楽器表示: model #serial → model → pianoLabel
+    const instrument = rec.model
+      ? esc(rec.model) + (rec.serial ? ' #' + esc(rec.serial) : '')
+      : esc(pianoLabel(rec.type));
+    const metaLine = instrument + (rec.workType ? ' · ' + esc(workTypeLabel(rec.workType)) : '');
+
+    // タグ表示 (computeAutoTags を使用)
+    const autoTags   = computeAutoTags(rec);
+    const shownTags  = autoTags.slice(0, MAX_TAGS);
+    const extraCount = autoTags.length - MAX_TAGS;
+    const tagsHtml   = autoTags.length
+      ? '<div class="rc-tags">' +
+        shownTags.map(tag => `<span class="rc-tag">#${esc(tag)}</span>`).join('') +
+        (extraCount > 0 ? `<span class="rc-tag rc-tag-more">+${extraCount}</span>` : '') +
+        '</div>'
+      : '';
+
     const card = document.createElement('div');
     card.className = 'record-card';
     card.innerHTML = `
@@ -1343,11 +1367,10 @@ function renderList() {
       <div class="record-info">
         <div class="record-title">${esc(rec.customer || t('noClient'))}</div>
         <div class="record-meta">
-          <span>${pianoLabel(rec.type)}</span>
-          ${rec.workType ? '<span>' + workTypeLabel(rec.workType) + '</span>' : ''}
-          ${rec.disklavier ? '<span>' + t('diskMeta') + '</span>' : ''}
-          ${rec.memo  ? '<span>' + t('memoTag') + '</span>' : ''}
+          <span class="rc-instrument">${metaLine}</span>
+          ${rec.disklavier ? `<span>${t('diskMeta')}</span>` : ''}
         </div>
+        ${tagsHtml}
       </div>
       <div class="completion-badge"><div class="completion-pct">${pct}%</div><div class="completion-lbl">${t('pctDone')}</div></div>`;
     card.addEventListener('click', () => showDetail(rec.id));
