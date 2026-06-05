@@ -563,7 +563,7 @@ const I18N = {
     wlConcert:'コンサート調律', wlMaintenance:'保守点検', wlPreShipment:'出荷前',
     wlRecording:'録音', wlRegular:'定期調律', wlPitchRaise:'ピッチ上げ', wlOther:'その他', wlInspection:'点検',
     ovNone:'コメントなし', ovSat:'満足', ovImp:'要改善',
-    toastSaved:'記録を保存しました', toastUpdated:'変更を保存しました',
+    toastSaved:'記録を保存しました', toastUpdated:'変更を保存しました', toastAutoSaved:'自動保存しました',
     toastDeleted:'記録を削除しました', toastMd:'MDをダウンロードしました',
     toastCopied:'コピーしました', toastCopyFail:'コピーに失敗しました',
     jsonExport:'JSONバックアップ', jsonImport:'JSONインポート',
@@ -641,7 +641,7 @@ const I18N = {
     wlConcert:'Concert Tuning', wlMaintenance:'Maintenance', wlPreShipment:'Pre-Shipment',
     wlRecording:'Recording', wlRegular:'Regular Tuning', wlPitchRaise:'Pitch Raise', wlOther:'Other', wlInspection:'Inspection',
     ovNone:'No Comment', ovSat:'Satisfied', ovImp:'Needs Improvement',
-    toastSaved:'Record saved', toastUpdated:'Changes saved',
+    toastSaved:'Record saved', toastUpdated:'Changes saved', toastAutoSaved:'Auto Saved',
     toastDeleted:'Record deleted', toastMd:'MD downloaded',
     toastCopied:'Copied', toastCopyFail:'Copy failed',
     jsonExport:'Backup JSON', jsonImport:'Import JSON',
@@ -966,6 +966,8 @@ let summaryItems     = [];
 let obsidianMode     = localStorage.getItem('obsidianMode') !== 'false'; // default ON
 let currentDetailRec = null;
 let editingId        = null;
+let isDirty          = false;
+let autoSaveTimer    = null;
 let activeTags       = new Set();
 let customTags       = new Set();
 
@@ -1267,7 +1269,7 @@ function updateHighlights() {
 /* =====================================================
    SAVE
 ===================================================== */
-document.getElementById('btn-save').addEventListener('click', () => {
+function collectFormData() {
   const date      = document.getElementById('f-date').value;
   const typeEl    = document.querySelector('input[name="piano-type"]:checked');
   const type      = typeEl ? typeEl.value : '';
@@ -1277,35 +1279,44 @@ document.getElementById('btn-save').addEventListener('click', () => {
   const lastTuned = document.getElementById('f-last-tuned').value;
   const workType  = document.getElementById('f-work-type').value;
   const customer  = document.getElementById('f-customer').value.trim();
-
   const location  = document.getElementById('f-location').value.trim();
-  const staff      = document.getElementById('f-staff').value.trim();
+  const staff     = document.getElementById('f-staff').value.trim();
   const clientType = document.getElementById('f-client-type').value;
-  const memo       = document.getElementById('f-memo').value.trim();
-  const techNote   = document.getElementById('f-tech-note').value.trim();
+  const memo      = document.getElementById('f-memo').value.trim();
+  const techNote  = document.getElementById('f-tech-note').value.trim();
   const disklavier = document.getElementById('f-disklavier').checked;
+  return { date, type, maker, model, serial, lastTuned, workType, customer, clientType, location, staff, memo, techNote, disklavier };
+}
 
-  if (!date) { toast(t('valDate')); return; }
-  if (!type) { toast(t('valType')); return; }
+function performSave(isAuto) {
+  const fd = collectFormData();
+  if (!fd.date) { if (!isAuto) toast(t('valDate')); return; }
+  if (!fd.type) { if (!isAuto) toast(t('valType')); return; }
 
-  const recData = { date, type, maker, model, serial, lastTuned, workType, customer, clientType, location, staff, memo, techNote, disklavier,
+  const recData = { ...fd,
     checklist:  JSON.parse(JSON.stringify(checklist)),
     tuningData: JSON.parse(JSON.stringify(tuningData)),
     evaluation: JSON.parse(JSON.stringify(evaluation)),
     savedAt:    new Date().toISOString() };
+
   if (editingId) {
     const idx = records.findIndex(r => r.id === editingId);
     if (idx !== -1) records[idx] = { ...records[idx], ...recData };
-    editingId = null;
-    toast(t('toastUpdated'));
   } else {
-    records.unshift({ id: Date.now().toString(), ...recData });
-    toast(t('toastSaved'));
+    const newId = Date.now().toString();
+    records.unshift({ id: newId, ...recData });
+    editingId = newId;
+    document.getElementById('btn-save').textContent = t('btnUpdate');
   }
   save();
   updateNavCount();
+  isDirty = false;
+  clearTimeout(autoSaveTimer);
+  toast(t(isAuto ? 'toastAutoSaved' : 'toastSaved'));
+}
 
-  // reset
+function clearForm() {
+  editingId = null; isDirty = false; clearTimeout(autoSaveTimer);
   document.getElementById('f-date').value = todayStr();
   document.querySelectorAll('input[name="piano-type"]').forEach(r => r.checked = false);
   ['f-maker','f-model','f-serial','f-last-tuned','f-work-type','f-customer','f-location','f-memo','f-tech-note'].forEach(id => { document.getElementById(id).value = ''; });
@@ -1315,7 +1326,18 @@ document.getElementById('btn-save').addEventListener('click', () => {
   currentPianoType = 'grand'; currentWorkType = ''; isDK = false;
   initChecklist(); buildScenes(); resetEvalForm();
   document.getElementById('btn-save').textContent = t('btnSave');
-});
+}
+
+function markDirty() {
+  isDirty = true;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => { if (isDirty) performSave(true); }, 5000);
+}
+
+document.getElementById('btn-save').addEventListener('click', () => performSave(false));
+// dirty tracking — delegate on entire new-record view
+document.getElementById('view-new').addEventListener('input',  markDirty);
+document.getElementById('view-new').addEventListener('change', markDirty);
 
 /* =====================================================
    LIST
@@ -2377,7 +2399,11 @@ function toast(msg) {
 /* =====================================================
    EVENT LISTENERS
 ===================================================== */
-document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => {
+  // 「新規記録」タブ → 編集モードを終了してフォームをクリア
+  if (btn.dataset.view === 'new') clearForm();
+  showView(btn.dataset.view);
+}));
 
 document.querySelectorAll('input[name="piano-type"]').forEach(rb => {
   rb.addEventListener('change', () => {
