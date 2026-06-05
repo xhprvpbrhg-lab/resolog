@@ -136,6 +136,16 @@
     .empty-state p { font-size: 14px; }
 
     .top-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    /* ---- Asset Suggest Panel ---- */
+    .asset-suggest { background: var(--card); border: 1.5px solid var(--accent); border-radius: var(--r); padding: 14px 16px; margin-top: 10px; }
+    .as-title { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 6px; }
+    .as-name  { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
+    .as-rows  { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 12px; font-size: 12px; }
+    .as-row   { display: flex; gap: 5px; }
+    .as-lbl   { color: var(--muted); font-weight: 600; white-space: nowrap; }
+    .as-val   { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .as-btn   { background: var(--primary); color: var(--accent-lt); border: none; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .17s; }
+    .as-btn:hover { background: var(--primary-lt); }
     .btn-ghost { background: none; border: 1px solid var(--border); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; color: var(--text); transition: all .2s; }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
     .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; transition: all .2s; }
@@ -337,10 +347,27 @@
   <div class="view active" id="view-new">
     <div class="card">
       <div class="card-title" data-i18n="cardBasic">基本情報</div>
+      <!-- Row 1: Serial | Model -->
       <div class="form-row">
         <div class="form-group">
-          <label for="f-date" data-i18n="lblDate">日付</label>
-          <input type="date" id="f-date">
+          <label for="f-serial" data-i18n="lblSerial">製造番号</label>
+          <input type="text" id="f-serial" list="dl-serial" placeholder="例：1234567" data-i18n-ph="phSerial" autocomplete="off">
+          <datalist id="dl-serial"></datalist>
+        </div>
+        <div class="form-group">
+          <label for="f-model" data-i18n="lblModel">モデル名</label>
+          <input type="text" id="f-model" list="dl-model" placeholder="例：CFX、S6X、CFIII" data-i18n-ph="phModel" autocomplete="off">
+          <datalist id="dl-model"></datalist>
+        </div>
+      </div>
+      <!-- Asset suggestion panel (hidden by default) -->
+      <div id="asset-suggest-panel" class="asset-suggest" style="display:none"></div>
+      <!-- Row 2: Make | Piano Type -->
+      <div class="form-row" style="margin-top:14px">
+        <div class="form-group">
+          <label for="f-maker" data-i18n="lblMaker">メーカー</label>
+          <input type="text" id="f-maker" list="dl-maker" placeholder="例：YAMAHA、KAWAI、Steinway" data-i18n-ph="phMaker" autocomplete="off">
+          <datalist id="dl-maker"></datalist>
         </div>
         <div class="form-group">
           <label data-i18n="lblType">ピアノ種別</label>
@@ -352,26 +379,25 @@
           </div>
         </div>
       </div>
+      <!-- Row 3: Venue | Client/Artist -->
       <div class="form-row" style="margin-top:14px">
         <div class="form-group">
-          <label for="f-maker" data-i18n="lblMaker">メーカー</label>
-          <input type="text" id="f-maker" placeholder="例：YAMAHA、KAWAI、Steinway" data-i18n-ph="phMaker">
+          <label for="f-location" data-i18n="lblLocation">会場名</label>
+          <input type="text" id="f-location" list="dl-location" placeholder="例：〇〇ホール、△△文化会館" data-i18n-ph="phLocation" autocomplete="off">
+          <datalist id="dl-location"></datalist>
         </div>
         <div class="form-group">
-          <label for="f-model" data-i18n="lblModel">モデル名</label>
-          <input type="text" id="f-model" placeholder="例：CFX、S6X、CFIII" data-i18n-ph="phModel">
+          <label for="f-customer" data-i18n="lblCustomer">顧客 / アーティスト</label>
+          <input type="text" id="f-customer" list="dl-customer" placeholder="例：山田 花子、〇〇カルテット" data-i18n-ph="phCustomer" autocomplete="off">
+          <datalist id="dl-customer"></datalist>
+          <select id="f-client-type" style="margin-top:6px;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;color:var(--muted);background:#fff;cursor:pointer;">
+            <option value="artist" data-i18n="ctArtist">アーティスト</option>
+            <option value="corporate" data-i18n="ctCorporate">企業 / 団体</option>
+            <option value="private" data-i18n="ctPrivate">一般顧客</option>
+          </select>
         </div>
       </div>
-      <div class="form-row" style="margin-top:14px">
-        <div class="form-group">
-          <label for="f-serial" data-i18n="lblSerial">製造番号</label>
-          <input type="text" id="f-serial" placeholder="例：1234567" data-i18n-ph="phSerial">
-        </div>
-        <div class="form-group">
-          <label for="f-last-tuned" data-i18n="lblLastTuned">前回調律日</label>
-          <input type="date" id="f-last-tuned">
-        </div>
-      </div>
+      <!-- Row 4: Work Type | Date -->
       <div class="form-row" style="margin-top:14px">
         <div class="form-group">
           <label for="f-work-type" data-i18n="lblWorkType">作業種別</label>
@@ -385,23 +411,20 @@
           </select>
         </div>
         <div class="form-group">
-          <label for="f-customer" data-i18n="lblCustomer">顧客 / アーティスト</label>
-          <input type="text" id="f-customer" placeholder="例：山田 花子、〇〇カルテット" data-i18n-ph="phCustomer">
-          <select id="f-client-type" style="margin-top:6px;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;color:var(--muted);background:#fff;cursor:pointer;">
-            <option value="artist" data-i18n="ctArtist">アーティスト</option>
-            <option value="corporate" data-i18n="ctCorporate">企業 / 団体</option>
-            <option value="private" data-i18n="ctPrivate">一般顧客</option>
-          </select>
+          <label for="f-date" data-i18n="lblDate">日付</label>
+          <input type="date" id="f-date">
         </div>
       </div>
+      <!-- Row 5: Staff | Last Tuned -->
       <div class="form-row" style="margin-top:14px">
         <div class="form-group">
-          <label for="f-location" data-i18n="lblLocation">会場名</label>
-          <input type="text" id="f-location" placeholder="例：〇〇ホール、△△文化会館" data-i18n-ph="phLocation">
+          <label for="f-staff" data-i18n="lblStaff">スタッフ名</label>
+          <input type="text" id="f-staff" list="dl-staff" placeholder="例：Shinya Maeda" autocomplete="off">
+          <datalist id="dl-staff"></datalist>
         </div>
         <div class="form-group">
-          <label for="f-staff" data-i18n="lblStaff">スタッフ名</label>
-          <input type="text" id="f-staff" placeholder="例：Shinya Maeda">
+          <label for="f-last-tuned" data-i18n="lblLastTuned">前回調律日</label>
+          <input type="date" id="f-last-tuned">
         </div>
       </div>
       <div class="checkbox-row">
@@ -542,6 +565,7 @@ const I18N = {
     phTech:'深掘りしたい気づき、工夫、今後の研究テーマ…', phEvalMemo:'変化の要因・作業内容…',
     phPosFb:'良かった点…', phNegFb:'改善要望…', searchPh:'顧客名・会場・メーカー・モデルで検索…',
     btnSave:'記録を保存する', btnUpdate:'変更を保存する',
+    acFound:'過去の楽器記録が見つかりました', acApply:'前回情報を反映',
     csvExport:'CSVエクスポート', filterAll:'すべて',
     listHeading:(n)=>`作業記録一覧（${n}件）`,
     listEmpty:'記録がありません', listEmptySub:'「新規記録」から作業記録を追加してください',
@@ -620,6 +644,7 @@ const I18N = {
     phTech:'Discoveries, techniques, research topics…', phEvalMemo:'Reason for change, work done…',
     phPosFb:'What went well…', phNegFb:'Improvement requests…', searchPh:'Search by client, venue, maker, model…',
     btnSave:'Save Record', btnUpdate:'Save Changes',
+    acFound:'Previous asset found', acApply:'Apply Previous Values',
     csvExport:'Export CSV', filterAll:'All',
     listHeading:(n)=>`Work Records (${n})`,
     listEmpty:'No records found', listEmptySub:'Add a new record from "New Record"',
@@ -1310,6 +1335,7 @@ function performSave(isAuto) {
   }
   save();
   updateNavCount();
+  buildAllDataLists();
   isDirty = false;
   clearTimeout(autoSaveTimer);
   toast(t(isAuto ? 'toastAutoSaved' : 'toastSaved'));
@@ -2194,7 +2220,7 @@ function importJSON(file) {
       const map = new Map(records.map(r => [r.id, r]));
       incoming.forEach(r => { if (r && r.id) map.set(r.id, r); });
       records = [...map.values()].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      save(); updateNavCount(); renderList();
+      save(); updateNavCount(); renderList(); buildAllDataLists();
       toast(t('toastImported', incoming.length));
     } catch { toast(t('toastImportFail')); }
   };
@@ -2397,6 +2423,87 @@ function toast(msg) {
 }
 
 /* =====================================================
+   AUTOCOMPLETE / ASSET SUGGEST
+===================================================== */
+function getHistory(field, limit) {
+  const seen = new Set(), result = [];
+  for (const r of records) {
+    const v = r[field];
+    if (v && !seen.has(v)) { seen.add(v); result.push(v); }
+    if (result.length >= (limit || 20)) break;
+  }
+  return result;
+}
+
+function fillDatalist(id, values) {
+  const dl = document.getElementById(id);
+  if (!dl) return;
+  dl.innerHTML = '';
+  values.forEach(v => { const o = document.createElement('option'); o.value = v; dl.appendChild(o); });
+}
+
+function buildAllDataLists() {
+  fillDatalist('dl-serial',   getHistory('serial'));
+  fillDatalist('dl-model',    getHistory('model'));
+  fillDatalist('dl-maker',    getHistory('maker'));
+  fillDatalist('dl-location', getHistory('location'));
+  fillDatalist('dl-customer', getHistory('customer'));
+  fillDatalist('dl-staff',    getHistory('staff'));
+}
+
+function showAssetSuggest(serial) {
+  const panel = document.getElementById('asset-suggest-panel');
+  if (!panel) return;
+  if (!serial) { panel.style.display = 'none'; return; }
+  const rec = records.find(r => r.serial === serial);
+  if (!rec) { panel.style.display = 'none'; return; }
+
+  const rows = [
+    [t('lblMaker'),    rec.maker],
+    [t('lblModel'),    rec.model],
+    [t('lblType'),     rec.type ? pianoLabel(rec.type) : ''],
+    [t('lblLocation'), rec.location],
+    [t('lblCustomer'), rec.customer],
+    [t('lblStaff'),    rec.staff],
+  ].filter(([, v]) => v);
+
+  const assetName = [rec.model, rec.serial ? '#' + rec.serial : ''].filter(Boolean).join(' ');
+  panel.innerHTML =
+    `<div class="as-title">${t('acFound')}</div>` +
+    `<div class="as-name">${esc(assetName)}</div>` +
+    `<div class="as-rows">${rows.map(([l, v]) => `<div class="as-row"><span class="as-lbl">${l}:</span><span class="as-val">${esc(v)}</span></div>`).join('')}</div>` +
+    `<button class="as-btn" id="btn-apply-suggest">${t('acApply')}</button>`;
+  panel.style.display = 'block';
+
+  document.getElementById('btn-apply-suggest').addEventListener('click', () => {
+    const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
+    fill('f-maker',    rec.maker);
+    fill('f-model',    rec.model);
+    fill('f-location', rec.location);
+    fill('f-customer', rec.customer);
+    fill('f-staff',    rec.staff);
+    if (rec.type && !document.querySelector('input[name="piano-type"]:checked')) {
+      const rb = document.getElementById('pt-' + rec.type);
+      if (rb) { rb.checked = true; rb.dispatchEvent(new Event('change')); }
+    }
+    panel.style.display = 'none';
+    markDirty();
+  });
+}
+
+function onModelChange(model) {
+  if (!model) return;
+  const rec = records.find(r => r.model === model);
+  if (!rec) return;
+  if (rec.maker && !document.getElementById('f-maker').value)
+    document.getElementById('f-maker').value = rec.maker;
+  if (rec.type && !document.querySelector('input[name="piano-type"]:checked')) {
+    const rb = document.getElementById('pt-' + rec.type);
+    if (rb) { rb.checked = true; rb.dispatchEvent(new Event('change')); }
+  }
+}
+
+/* =====================================================
    EVENT LISTENERS
 ===================================================== */
 document.querySelectorAll('.nav-tab').forEach(btn => btn.addEventListener('click', () => {
@@ -2420,6 +2527,8 @@ document.getElementById('f-work-type').addEventListener('change', e => {
 document.getElementById('f-disklavier').addEventListener('change', e => {
   isDK = e.target.checked; updateDkVisibility();
 });
+document.getElementById('f-serial').addEventListener('change', e => showAssetSuggest(e.target.value.trim()));
+document.getElementById('f-model').addEventListener('change',  e => onModelChange(e.target.value.trim()));
 
 /* =====================================================
    LANGUAGE TOGGLE
@@ -2446,6 +2555,7 @@ document.getElementById('f-date').value = todayStr();
 document.getElementById('f-staff').value = 'Shinya Maeda';
 updateNavCount();
 applyI18n();
+buildAllDataLists();
 </script>
 <script>
   if ('serviceWorker' in navigator) {
