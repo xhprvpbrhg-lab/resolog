@@ -146,6 +146,7 @@
     .as-val   { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .as-btn   { background: var(--primary); color: var(--accent-lt); border: none; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .17s; }
     .as-btn:hover { background: var(--primary-lt); }
+    .as-divider { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin: 10px 0 6px; }
     .btn-ghost { background: none; border: 1px solid var(--border); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; color: var(--text); transition: all .2s; }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
     .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; transition: all .2s; }
@@ -566,6 +567,8 @@ const I18N = {
     phPosFb:'良かった点…', phNegFb:'改善要望…', searchPh:'顧客名・会場・メーカー・モデルで検索…',
     btnSave:'記録を保存する', btnUpdate:'変更を保存する',
     acFound:'過去の楽器記録が見つかりました', acApply:'前回情報を反映',
+    acPrevSession:'前回作業', acPrevPitch:'前回ピッチ',
+    daysAgo:(n) => n === 0 ? '今日' : n === 1 ? '1日前' : n + '日前',
     csvExport:'CSVエクスポート', filterAll:'すべて',
     listHeading:(n)=>`作業記録一覧（${n}件）`,
     listEmpty:'記録がありません', listEmptySub:'「新規記録」から作業記録を追加してください',
@@ -645,6 +648,8 @@ const I18N = {
     phPosFb:'What went well…', phNegFb:'Improvement requests…', searchPh:'Search by client, venue, maker, model…',
     btnSave:'Save Record', btnUpdate:'Save Changes',
     acFound:'Previous asset found', acApply:'Apply Previous Values',
+    acPrevSession:'Previous Session', acPrevPitch:'Previous Pitch',
+    daysAgo:(n) => n === 0 ? 'today' : n === 1 ? '1 day ago' : n + ' days ago',
     csvExport:'Export CSV', filterAll:'All',
     listHeading:(n)=>`Work Records (${n})`,
     listEmpty:'No records found', listEmptySub:'Add a new record from "New Record"',
@@ -2467,11 +2472,33 @@ function showAssetSuggest(serial) {
     [t('lblStaff'),    rec.staff],
   ].filter(([, v]) => v);
 
+  // 前回作業セクション（表示のみ・Apply 対象外）
+  const days = rec.date ? Math.round((Date.now() - new Date(rec.date)) / 86400000) : null;
+  const lastTunedText = rec.date
+    ? fmtDate(rec.date) + ' (' + t('daysAgo', days) + ')'
+    : '';
+  const prevPitch    = rec.tuningData?.pitchAfter ? rec.tuningData.pitchAfter + ' Hz' : '';
+  const prevWorkType = rec.workType ? workTypeLabel(rec.workType) : '';
+  const prevClient   = rec.customer || '';
+  const prevVenue    = rec.location  || '';
+
+  const sessionRows = [
+    [t('lblLastTuned'),   lastTunedText],
+    [t('acPrevPitch'),    prevPitch],
+    [t('lblWorkType'),    prevWorkType],
+    [t('lblCustomer'),    prevClient],
+    [t('lblLocation'),    prevVenue],
+  ].filter(([, v]) => v);
+
+  const rowsHtml = r => r.map(([l, v]) =>
+    `<div class="as-row"><span class="as-lbl">${l}:</span><span class="as-val">${esc(v)}</span></div>`).join('');
+
   const assetName = [rec.model, rec.serial ? '#' + rec.serial : ''].filter(Boolean).join(' ');
   panel.innerHTML =
     `<div class="as-title">${t('acFound')}</div>` +
     `<div class="as-name">${esc(assetName)}</div>` +
-    `<div class="as-rows">${rows.map(([l, v]) => `<div class="as-row"><span class="as-lbl">${l}:</span><span class="as-val">${esc(v)}</span></div>`).join('')}</div>` +
+    (rows.length        ? `<div class="as-rows">${rowsHtml(rows)}</div>` : '') +
+    (sessionRows.length ? `<div class="as-divider">${t('acPrevSession')}</div><div class="as-rows">${rowsHtml(sessionRows)}</div>` : '') +
     `<button class="as-btn" id="btn-apply-suggest">${t('acApply')}</button>`;
   panel.style.display = 'block';
 
