@@ -328,6 +328,23 @@
     .sb-preview-area { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
     .sb-preview-label { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
     .sb-preview { background: #F9F8F5; border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 12px; white-space: pre-wrap; line-height: 1.6; color: var(--text); max-height: 220px; overflow-y: auto; }
+
+    /* ---- Touch Measurement ---- */
+    .touch-section { margin: 4px 0 2px; }
+    .touch-section-hd { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: .09em; text-transform: uppercase; padding: 10px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
+    .touch-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #F0EDE8; }
+    .touch-row:last-child { border-bottom: none; }
+    .touch-label { font-size: 14px; flex: 1; line-height: 1.35; }
+    .touch-ctrl { display: flex; align-items: center; gap: 6px; }
+    .touch-input { width: 78px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; color: var(--text); background: #FAFAF7; text-align: right; -webkit-appearance: none; appearance: none; }
+    .touch-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(196,168,122,.18); }
+    .touch-result { width: 78px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; color: var(--muted); background: #F0EDE8; text-align: right; }
+    .touch-unit { font-size: 12px; color: var(--muted); width: 14px; flex-shrink: 0; }
+    .touch-badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .02em; }
+    .touch-badge.tb-normal  { background: #E8F5E9; color: #2E7D32; }
+    .touch-badge.tb-caution { background: #FFF8E1; color: #E65100; }
+    .touch-badge.tb-extreme { background: #FFEBEE; color: #B71C1C; }
+    .touch-badge.tb-none    { background: #F0EDE8; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -1006,6 +1023,7 @@ const SCENES_UP = [
 let records          = [];
 let checklist        = {};
 let tuningData       = {};
+let touchData        = {};
 let evaluation       = {};
 let currentPianoType = 'grand';
 let currentWorkType  = '';
@@ -1055,6 +1073,7 @@ function updateNavCount() {
 function initChecklist() {
   checklist  = {};
   tuningData = { pitchBefore: '440', pitchAfter: '440', preCondition: '', postComment: '', stringPinMemo: '' };
+  touchData  = { inspectionDW: '', inspectionUW: '', finalDW: '', finalUW: '' };
   getScenes().forEach(s => {
     if (s.type === 'form') return;
     checklist[s.id] = {};
@@ -1105,12 +1124,14 @@ function buildChecklistPanel(panel, scene) {
   prog.innerHTML = `<div class="prog-bar"><div class="prog-fill" id="pf-${scene.id}" style="width:0%"></div></div><div class="prog-text" id="pt-${scene.id}">0 / ${totalItems}</div>`;
   panel.appendChild(prog);
 
+  const groupEls = [];
   scene.groups.forEach((group, gi) => {
     const section = document.createElement('div');
     section.className = 'group-section';
     if (group.isDkSection) section.classList.add('dk-section');
     section.dataset.sid = scene.id;
     section.dataset.gi  = gi;
+    groupEls.push(section);
 
     if (group.label) {
       const hd = document.createElement('div');
@@ -1193,6 +1214,18 @@ function buildChecklistPanel(panel, scene) {
     });
     panel.appendChild(section);
   });
+
+  // Inject touch measurement section
+  if (scene.id === 'inspection') {
+    // After all groups (after タッチ・音チェック group)
+    panel.appendChild(buildTouchSection('inspection'));
+  } else if (scene.id === 'final') {
+    // After group 0 (totalCheck/polish), before Disklavier group
+    const ref = groupEls[1]; // Disklavier group
+    const ts  = buildTouchSection('final');
+    if (ref) panel.insertBefore(ts, ref);
+    else     panel.appendChild(ts);
+  }
 }
 
 function countItems(scene, respectDK) {
@@ -1272,6 +1305,133 @@ function updateTuningProgress() {
   if (pt) pt.textContent = n + ' / 2';
 }
 
+/* =====================================================
+   TOUCH MEASUREMENT
+===================================================== */
+function getBalanceWeightRating(bw) {
+  if (bw < 28) return { en: 'Extremely Low',  ja: '極めて低い', cls: 'tb-extreme' };
+  if (bw < 33) return { en: 'Low',             ja: '低い',       cls: 'tb-caution' };
+  if (bw <= 39) return { en: 'Normal',          ja: '標準',       cls: 'tb-normal'  };
+  if (bw <= 46) return { en: 'High',            ja: '高い',       cls: 'tb-caution' };
+  return               { en: 'Extremely High',  ja: '極めて高い', cls: 'tb-extreme' };
+}
+function getFrictionRating(f) {
+  if (f < 6)  return { en: 'Extremely Low',  ja: '極めて低い', cls: 'tb-extreme' };
+  if (f < 9)  return { en: 'Low',             ja: '低い',       cls: 'tb-caution' };
+  if (f <= 15) return { en: 'Normal',          ja: '標準',       cls: 'tb-normal'  };
+  if (f <= 17) return { en: 'High',            ja: '高い',       cls: 'tb-caution' };
+  return              { en: 'Extremely High',  ja: '極めて高い', cls: 'tb-extreme' };
+}
+
+function buildTouchSection(phase) {
+  const isJA  = lang !== 'en';
+  const LABELS = {
+    hd:    isJA ? 'タッチ測定' : 'Touch Measurement',
+    dw:    isJA ? 'ダウンウェイト'      : 'Down Weight',
+    uw:    isJA ? 'アップウェイト'      : 'Up Weight',
+    bw:    isJA ? 'バランスウェイト'    : 'Balance Weight',
+    fr:    isJA ? 'フリクション'        : 'Friction',
+    bwRat: isJA ? 'バランスウェイト評価': 'BW Rating',
+    frRat: isJA ? 'フリクション評価'    : 'Friction Rating',
+  };
+
+  const sec = document.createElement('div');
+  sec.className = 'touch-section';
+  sec.id = 'ts-' + phase;
+
+  const hd = document.createElement('div');
+  hd.className = 'touch-section-hd';
+  hd.textContent = LABELS.hd;
+  sec.appendChild(hd);
+
+  function makeInputRow(label, inputId) {
+    const row  = document.createElement('div'); row.className = 'touch-row';
+    const lb   = document.createElement('span'); lb.className = 'touch-label'; lb.textContent = label;
+    const ctrl = document.createElement('div');  ctrl.className = 'touch-ctrl';
+    const inp  = document.createElement('input');
+    inp.type = 'number'; inp.className = 'touch-input'; inp.id = inputId;
+    inp.step = '0.5'; inp.min = '0'; inp.placeholder = '—';
+    const unit = document.createElement('span'); unit.className = 'touch-unit'; unit.textContent = 'g';
+    ctrl.appendChild(inp); ctrl.appendChild(unit);
+    row.appendChild(lb); row.appendChild(ctrl);
+    return { row, inp };
+  }
+
+  function makeResultRow(label, resultId) {
+    const row  = document.createElement('div'); row.className = 'touch-row';
+    const lb   = document.createElement('span'); lb.className = 'touch-label'; lb.textContent = label;
+    const ctrl = document.createElement('div');  ctrl.className = 'touch-ctrl';
+    const res  = document.createElement('span'); res.className = 'touch-result'; res.id = resultId; res.textContent = '—';
+    const unit = document.createElement('span'); unit.className = 'touch-unit'; unit.textContent = 'g';
+    ctrl.appendChild(res); ctrl.appendChild(unit);
+    row.appendChild(lb); row.appendChild(ctrl);
+    return row;
+  }
+
+  function makeRatingRow(label, badgeId) {
+    const row  = document.createElement('div'); row.className = 'touch-row';
+    const lb   = document.createElement('span'); lb.className = 'touch-label'; lb.textContent = label;
+    const bdg  = document.createElement('span'); bdg.className = 'touch-badge tb-none'; bdg.id = badgeId; bdg.textContent = '—';
+    row.appendChild(lb); row.appendChild(bdg);
+    return row;
+  }
+
+  const { row: dwRow, inp: dwInp } = makeInputRow(LABELS.dw, 'tw-' + phase + '-dw');
+  const { row: uwRow, inp: uwInp } = makeInputRow(LABELS.uw, 'tw-' + phase + '-uw');
+  sec.appendChild(dwRow);
+  sec.appendChild(uwRow);
+  sec.appendChild(makeResultRow(LABELS.bw, 'tw-' + phase + '-bw'));
+  sec.appendChild(makeResultRow(LABELS.fr, 'tw-' + phase + '-fr'));
+  sec.appendChild(makeRatingRow(LABELS.bwRat, 'tw-' + phase + '-bwr'));
+  sec.appendChild(makeRatingRow(LABELS.frRat, 'tw-' + phase + '-frr'));
+
+  const update = () => {
+    const dw = parseFloat(dwInp.value);
+    const uw = parseFloat(uwInp.value);
+    touchData[phase === 'inspection' ? 'inspectionDW' : 'finalDW'] = dwInp.value;
+    touchData[phase === 'inspection' ? 'inspectionUW' : 'finalUW'] = uwInp.value;
+    calcTouchDisplay(phase, dw, uw);
+  };
+  dwInp.addEventListener('input', update);
+  uwInp.addEventListener('input', update);
+  return sec;
+}
+
+function calcTouchDisplay(phase, dw, uw) {
+  const bwEl  = document.getElementById('tw-' + phase + '-bw');
+  const frEl  = document.getElementById('tw-' + phase + '-fr');
+  const bwrEl = document.getElementById('tw-' + phase + '-bwr');
+  const frrEl = document.getElementById('tw-' + phase + '-frr');
+  if (!bwEl) return;
+
+  const valid = !isNaN(dw) && !isNaN(uw) && dw > 0 && uw > 0;
+  if (!valid) {
+    bwEl.textContent = '—'; frEl.textContent = '—';
+    [bwrEl, frrEl].forEach(el => { if (el) { el.textContent = '—'; el.className = 'touch-badge tb-none'; } });
+    return;
+  }
+
+  const bw = (dw + uw) / 2;
+  const fr = (dw - uw) / 2;
+  bwEl.textContent = bw.toFixed(1);
+  frEl.textContent = fr.toFixed(1);
+
+  const bwRat = getBalanceWeightRating(bw);
+  const frRat = getFrictionRating(fr);
+  if (bwrEl) { bwrEl.textContent = lang === 'en' ? bwRat.en : bwRat.ja; bwrEl.className = 'touch-badge ' + bwRat.cls; }
+  if (frrEl) { frrEl.textContent = lang === 'en' ? frRat.en : frRat.ja; frrEl.className = 'touch-badge ' + frRat.cls; }
+}
+
+function restoreTouchUI(phase) {
+  const dwEl = document.getElementById('tw-' + phase + '-dw');
+  const uwEl = document.getElementById('tw-' + phase + '-uw');
+  if (!dwEl || !uwEl) return;
+  const dw = touchData[phase === 'inspection' ? 'inspectionDW' : 'finalDW'] || '';
+  const uw = touchData[phase === 'inspection' ? 'inspectionUW' : 'finalUW'] || '';
+  dwEl.value = dw; uwEl.value = uw;
+  calcTouchDisplay(phase, parseFloat(dw), parseFloat(uw));
+}
+
 function updateDkVisibility() {
   document.querySelectorAll('.dk-section').forEach(el => {
     el.style.display = isDK ? 'block' : 'none';
@@ -1344,6 +1504,7 @@ function performSave(isAuto) {
   const recData = { ...fd,
     checklist:  JSON.parse(JSON.stringify(checklist)),
     tuningData: JSON.parse(JSON.stringify(tuningData)),
+    touchData:  JSON.parse(JSON.stringify(touchData)),
     evaluation: JSON.parse(JSON.stringify(evaluation)),
     savedAt:    new Date().toISOString() };
 
@@ -2144,6 +2305,8 @@ function restoreChecklistUI() {
     }));
     updateProgress(scene);
   });
+  restoreTouchUI('inspection');
+  restoreTouchUI('final');
 }
 
 function restoreTuningUI() {
@@ -2211,6 +2374,7 @@ function populateFormForEdit(rec) {
     }));
   });
   tuningData = JSON.parse(JSON.stringify(rec.tuningData || { pitchBefore:'440', pitchAfter:'440', preCondition:'', postComment:'', stringPinMemo:'' }));
+  touchData  = JSON.parse(JSON.stringify(rec.touchData  || { inspectionDW:'', inspectionUW:'', finalDW:'', finalUW:'' }));
   evaluation = migrateEvaluation(rec.evaluation);
   buildScenes();
   restoreChecklistUI();
