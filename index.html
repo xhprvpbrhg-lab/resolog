@@ -147,6 +147,9 @@
     .as-btn   { background: var(--primary); color: var(--accent-lt); border: none; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .17s; }
     .as-btn:hover { background: var(--primary-lt); }
     .as-divider { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin: 10px 0 6px; }
+    .as-eval-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; margin-bottom: 10px; }
+    .as-eval-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: 12px; }
+    .as-eval-score { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 11px; font-weight: 800; background: var(--primary); color: var(--accent-lt); flex-shrink: 0; }
     .btn-ghost { background: none; border: 1px solid var(--border); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; color: var(--text); transition: all .2s; }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
     .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 8px 14px; border-radius: var(--r); cursor: pointer; font-size: 13px; font-family: inherit; transition: all .2s; }
@@ -585,6 +588,7 @@ const I18N = {
     btnSave:'記録を保存する', btnUpdate:'変更を保存する',
     acFound:'過去の楽器記録が見つかりました', acApply:'前回情報を反映',
     acPrevSession:'前回作業', acPrevPitch:'前回ピッチ',
+    acPrevDate:'前回記録日', acPrevEval:'前回調律後評価（調律前評価に反映）',
     daysAgo:(n) => n === 0 ? '今日' : n === 1 ? '1日前' : n + '日前',
     csvExport:'CSVエクスポート', filterAll:'すべて',
     listHeading:(n)=>`作業記録一覧（${n}件）`,
@@ -666,6 +670,7 @@ const I18N = {
     btnSave:'Save Record', btnUpdate:'Save Changes',
     acFound:'Previous asset found', acApply:'Apply Previous Values',
     acPrevSession:'Previous Session', acPrevPitch:'Previous Pitch',
+    acPrevDate:'Previous session date', acPrevEval:'Prev. After-Evaluation → Before-Evaluation',
     daysAgo:(n) => n === 0 ? 'today' : n === 1 ? '1 day ago' : n + ' days ago',
     csvExport:'Export CSV', filterAll:'All',
     listHeading:(n)=>`Work Records (${n})`,
@@ -2642,9 +2647,12 @@ function showAssetSuggest(serial) {
   const panel = document.getElementById('asset-suggest-panel');
   if (!panel) return;
   if (!serial) { panel.style.display = 'none'; return; }
-  const rec = records.find(r => r.serial === serial);
+
+  // 直近の過去記録を検索（編集中の記録自身は除外、新しい順なので find で最新が取れる）
+  const rec = records.find(r => r.serial === serial && r.id !== editingId);
   if (!rec) { panel.style.display = 'none'; return; }
 
+  // --- 楽器情報（Apply 対象）---
   const rows = [
     [t('lblMaker'),    rec.maker],
     [t('lblModel'),    rec.model],
@@ -2654,26 +2662,41 @@ function showAssetSuggest(serial) {
     [t('lblStaff'),    rec.staff],
   ].filter(([, v]) => v);
 
-  // 前回作業セクション（表示のみ・Apply 対象外）
+  // --- 前回作業情報（表示＋Apply 対象）---
   const days = rec.date ? Math.round((Date.now() - new Date(rec.date)) / 86400000) : null;
-  const lastTunedText = rec.date
-    ? fmtDate(rec.date) + ' (' + t('daysAgo', days) + ')'
-    : '';
-  const prevPitch    = rec.tuningData?.pitchAfter ? rec.tuningData.pitchAfter + ' Hz' : '';
-  const prevWorkType = rec.workType ? workTypeLabel(rec.workType) : '';
-  const prevClient   = rec.customer || '';
-  const prevVenue    = rec.location  || '';
+  const prevDateText  = rec.date ? fmtDate(rec.date) + ' (' + t('daysAgo', days) + ')' : '';
+  const prevPitch     = rec.tuningData?.pitchAfter ? rec.tuningData.pitchAfter + ' Hz' : '';
+  const prevWorkType  = rec.workType ? workTypeLabel(rec.workType) : '';
 
   const sessionRows = [
-    [t('lblLastTuned'),   lastTunedText],
-    [t('acPrevPitch'),    prevPitch],
-    [t('lblWorkType'),    prevWorkType],
-    [t('lblCustomer'),    prevClient],
-    [t('lblLocation'),    prevVenue],
+    [t('acPrevDate'),  prevDateText],
+    [t('acPrevPitch'), prevPitch],
+    [t('lblWorkType'), prevWorkType],
   ].filter(([, v]) => v);
 
+  // --- 前回 after-evaluation データ ---
+  const EVAL_KEYS = ['touch','repetition','volume','tone_color','intonation','dynamics_curve','evenness'];
+  const prevEval = rec.evaluation || {};
+  const prevAfterVals = {};
+  EVAL_KEYS.forEach(k => {
+    const v = prevEval[k]?.after;
+    if (v !== undefined && v !== null) prevAfterVals[k] = v;
+  });
+  const hasEvalData = Object.keys(prevAfterVals).length > 0;
+
   const rowsHtml = r => r.map(([l, v]) =>
-    `<div class="as-row"><span class="as-lbl">${l}:</span><span class="as-val">${esc(v)}</span></div>`).join('');
+    `<div class="as-row"><span class="as-lbl">${esc(l)}:</span><span class="as-val">${esc(String(v))}</span></div>`).join('');
+
+  // eval プレビュー HTML
+  let evalHtml = '';
+  if (hasEvalData) {
+    const items = EVAL_KEYS
+      .filter(k => prevAfterVals[k] !== undefined)
+      .map(k => `<div class="as-eval-item"><span class="as-lbl">${esc(t('sl' + slKey(k)))}:</span><span class="as-eval-score">${prevAfterVals[k]}</span></div>`)
+      .join('');
+    evalHtml = `<div class="as-divider">${t('acPrevEval')}</div>` +
+               `<div class="as-eval-preview">${items}</div>`;
+  }
 
   const assetName = [rec.model, rec.serial ? '#' + rec.serial : ''].filter(Boolean).join(' ');
   panel.innerHTML =
@@ -2681,20 +2704,44 @@ function showAssetSuggest(serial) {
     `<div class="as-name">${esc(assetName)}</div>` +
     (rows.length        ? `<div class="as-rows">${rowsHtml(rows)}</div>` : '') +
     (sessionRows.length ? `<div class="as-divider">${t('acPrevSession')}</div><div class="as-rows">${rowsHtml(sessionRows)}</div>` : '') +
+    evalHtml +
     `<button class="as-btn" id="btn-apply-suggest">${t('acApply')}</button>`;
   panel.style.display = 'block';
 
   document.getElementById('btn-apply-suggest').addEventListener('click', () => {
-    const fill = (id, val) => { if (val && !document.getElementById(id).value) document.getElementById(id).value = val; };
+    const fill = (id, val) => { if (val && !document.getElementById(id)?.value) document.getElementById(id).value = val; };
+
+    // 楽器情報
     fill('f-maker',    rec.maker);
     fill('f-model',    rec.model);
     fill('f-location', rec.location);
     fill('f-customer', rec.customer);
     fill('f-staff',    rec.staff);
+
+    // ピアノ種別
     if (rec.type && !document.querySelector('input[name="piano-type"]:checked')) {
       const rb = document.getElementById('pt-' + rec.type);
       if (rb) { rb.checked = true; rb.dispatchEvent(new Event('change')); }
     }
+
+    // Last Tuned：前回作業日を反映（空欄の場合のみ）
+    fill('f-last-tuned', rec.date);
+
+    // 前回 after-evaluation → 今回 before-evaluation（デフォルト値 3 のスライダーのみ上書き）
+    EVAL_KEYS.forEach(k => {
+      const prevVal = prevAfterVals[k];
+      if (prevVal === undefined) return;
+      const slEl = document.getElementById('sl-' + k + '-before');
+      const svEl = document.getElementById('sv-' + k + '-before');
+      if (!slEl) return;
+      if (parseInt(slEl.value, 10) === 3) {  // デフォルト値のみ上書き
+        slEl.value = prevVal;
+        if (svEl) svEl.textContent = prevVal;
+        if (!evaluation[k]) evaluation[k] = { before: 3, after: 3, memo: '' };
+        evaluation[k].before = prevVal;
+      }
+    });
+
     panel.style.display = 'none';
     markDirty();
   });
