@@ -884,7 +884,7 @@ const SCENES_GP = [
         { id: 'jack',         label: 'ジャック前後・上下',             enLabel: 'Jack Position',                       hasMemo: true, tags: ALL },
         { id: 'hammerDist',   label: '打弦距離',                       enLabel: 'Blow Distance',                       hasMm: true,  tags: ALL },
         { id: 'letOff',       label: '働き量',                         enLabel: 'After Touch',                         hasMm: true,  tags: ALL },
-        { id: 'hammerStop',   label: 'ハンマーストップ',               enLabel: 'Hammer Catching Position',            hasMm: true,  tags: ALL },
+        { id: 'hammerStop',   label: 'ハンマーストップ',               enLabel: 'Hammer Back Check',                   hasMm: true,  tags: ALL },
         { id: 'repSpring',    label: 'レペティションスプリング',       enLabel: 'Rep. Spring Tension',                 hasMemo: true, tags: ALL },
       ]},
       { label: 'ペダル調整', enLabel: 'Pedal Regulation', items: [
@@ -980,7 +980,7 @@ const SCENES_UP = [
         // 作動量
         { id: 'hammerClose',   label: 'ハンマー接近',                 enLabel: 'Let-Off',                           hasMm: true,   tags: ALL },
         { id: 'letOff',        label: '働き量',                       enLabel: 'After Touch',                       hasMm: true,   tags: ALL },
-        { id: 'hammerStop',    label: 'ハンマーストップ',             enLabel: 'Hammer Catching Position',           hasMm: true,   tags: ALL },
+        { id: 'hammerStop',    label: 'ハンマーストップ',             enLabel: 'Hammer Back Check',                  hasMm: true,   tags: ALL },
         { id: 'jackStopRail',  label: 'ジャックストップレール調整',   enLabel: 'Jack Stop Rail',                    hasMemo: true, tags: ALL },
       ]},
       { label: 'ペダル調整', enLabel: 'Pedal Regulation', items: [
@@ -2134,6 +2134,7 @@ function computeAutoTags(rec) {
   if (anyChecked('voicing'))    tags.add('voicing');
   if (rec.evaluation?.positive || rec.evaluation?.negative) tags.add('client_feedback');
   if (rec.techNote) tags.add('technical_discovery');
+  if (rec.disklavier) tags.add('disklavier');
   return [...tags];
 }
 
