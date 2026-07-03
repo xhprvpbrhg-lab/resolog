@@ -128,6 +128,11 @@
     .rc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
     .rc-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: rgba(24,29,54,.07); color: var(--primary); border: 1px solid rgba(24,29,54,.13); letter-spacing: .02em; white-space: nowrap; }
     .rc-tag-more { background: rgba(196,168,122,.13); color: var(--accent); border-color: rgba(196,168,122,.35); }
+    .record-card.rc-md-exported { border-left: 3px solid var(--accent); background: rgba(196,168,122,.04); }
+    .record-card.rc-needs-export { border-left: 3px solid #b94040; background: rgba(185,64,64,.03); }
+    .rc-md-badge { display: inline-flex; align-items: center; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 10px; letter-spacing: .05em; white-space: nowrap; margin-top: 5px; }
+    .rc-badge-exported { background: rgba(196,168,122,.18); color: #9a7d4e; border: 1px solid rgba(196,168,122,.45); }
+    .rc-badge-needs { background: rgba(185,64,64,.1); color: #b94040; border: 1px solid rgba(185,64,64,.35); }
     .completion-badge { flex-shrink: 0; text-align: right; }
     .completion-pct { font-size: 20px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
     .completion-lbl { font-size: 10px; color: var(--muted); }
@@ -613,6 +618,7 @@ const I18N = {
     ovNone:'コメントなし', ovSat:'満足', ovImp:'要改善',
     toastSaved:'記録を保存しました', toastUpdated:'変更を保存しました', toastAutoSaved:'自動保存しました',
     toastDeleted:'記録を削除しました', toastMd:'MDをダウンロードしました',
+    mdExportedBadge:'MD出力済み', needsExportBadge:'再出力必要',
     toastCopied:'コピーしました', toastCopyFail:'コピーに失敗しました',
     jsonExport:'JSONバックアップ', jsonImport:'JSONインポート',
     toastJsonExported:'バックアップをダウンロードしました',
@@ -695,6 +701,7 @@ const I18N = {
     ovNone:'No Comment', ovSat:'Satisfied', ovImp:'Needs Improvement',
     toastSaved:'Record saved', toastUpdated:'Changes saved', toastAutoSaved:'Auto Saved',
     toastDeleted:'Record deleted', toastMd:'MD downloaded',
+    mdExportedBadge:'MD Exported', needsExportBadge:'Needs Export',
     toastCopied:'Copied', toastCopyFail:'Copy failed',
     jsonExport:'Backup JSON', jsonImport:'Import JSON',
     toastJsonExported:'Backup downloaded',
@@ -1515,7 +1522,11 @@ function performSave(isAuto) {
 
   if (editingId) {
     const idx = records.findIndex(r => r.id === editingId);
-    if (idx !== -1) records[idx] = { ...records[idx], ...recData };
+    if (idx !== -1) {
+      const wasExported = records[idx].markdown_exported;
+      records[idx] = { ...records[idx], ...recData };
+      if (wasExported) { records[idx].markdown_exported = false; records[idx].edited_after_export = true; }
+    }
   } else {
     const newId = Date.now().toString();
     records.unshift({ id: newId, ...recData });
@@ -1597,8 +1608,13 @@ function renderList() {
         '</div>'
       : '';
 
+    const mdState = rec.edited_after_export ? 'needs' : rec.markdown_exported ? 'exported' : null;
+    const mdBadge = mdState
+      ? `<span class="rc-md-badge rc-badge-${mdState}">${mdState === 'needs' ? t('needsExportBadge') : t('mdExportedBadge')}</span>`
+      : '';
+
     const card = document.createElement('div');
-    card.className = 'record-card';
+    card.className = 'record-card' + (mdState === 'exported' ? ' rc-md-exported' : mdState === 'needs' ? ' rc-needs-export' : '');
     card.innerHTML = `
       <div class="date-badge"><div class="ym">${y}/${m}</div><div class="dd">${d}</div></div>
       <div class="record-info">
@@ -1607,7 +1623,7 @@ function renderList() {
           <span class="rc-instrument">${metaLine}</span>
           ${rec.disklavier ? `<span>${t('diskMeta')}</span>` : ''}
         </div>
-        ${tagsHtml}
+        ${tagsHtml}${mdBadge}
       </div>
       <div class="completion-badge"><div class="completion-pct">${pct}%</div><div class="completion-lbl">${t('pctDone')}</div></div>`;
     card.addEventListener('click', () => showDetail(rec.id));
@@ -2575,6 +2591,8 @@ function exportMD(rec) {
   const fname = [rec.date, san(rec.location), san(rec.maker), san(rec.serial)].filter(Boolean).join('_') + '.md';
   dlBlob(new Blob([md], { type: 'text/markdown;charset=utf-8;' }), fname);
   toast(t('toastMd'));
+  const stored = records.find(r => r.id === rec.id);
+  if (stored) { stored.markdown_exported = true; stored.edited_after_export = false; save(); }
 }
 
 function dlBlob(blob, name) {
