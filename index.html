@@ -128,11 +128,21 @@
     .rc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
     .rc-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: rgba(24,29,54,.07); color: var(--primary); border: 1px solid rgba(24,29,54,.13); letter-spacing: .02em; white-space: nowrap; }
     .rc-tag-more { background: rgba(196,168,122,.13); color: var(--accent); border-color: rgba(196,168,122,.35); }
-    .record-card.rc-md-exported { border-left: 3px solid var(--accent); background: rgba(196,168,122,.04); }
-    .record-card.rc-needs-export { border-left: 3px solid #b94040; background: rgba(185,64,64,.03); }
-    .rc-md-badge { display: inline-flex; align-items: center; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 10px; letter-spacing: .05em; white-space: nowrap; margin-top: 5px; }
-    .rc-badge-exported { background: rgba(196,168,122,.18); color: #9a7d4e; border: 1px solid rgba(196,168,122,.45); }
-    .rc-badge-needs { background: rgba(185,64,64,.1); color: #b94040; border: 1px solid rgba(185,64,64,.35); }
+    .rc-status { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 10px; letter-spacing: .04em; white-space: nowrap; margin-top: 5px; }
+    .rc-status-progress { background: rgba(230,126,34,.13); color: #c0681a; border: 1px solid rgba(230,126,34,.35); }
+    .rc-status-ready    { background: rgba(41,128,185,.11);  color: #1a6fa0; border: 1px solid rgba(41,128,185,.35); }
+    .rc-status-archived { background: rgba(39,174,96,.11);   color: #1e8e4a; border: 1px solid rgba(39,174,96,.35);  }
+    .record-card.rc-card-progress { border-left: 3px solid #e67e22; }
+    .record-card.rc-card-ready    { border-left: 3px solid #2980b9; }
+    .btn-go-archived { display: block; width: 100%; margin-top: 8px; padding: 12px; background: none; border: 1.5px dashed var(--border); border-radius: var(--r); color: var(--muted); font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; transition: border-color .2s, color .2s; text-align: center; }
+    .btn-go-archived:hover { border-color: var(--accent); color: var(--accent); }
+    .archived-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .archived-header h2 { font-size: 16px; font-weight: 700; color: var(--primary); flex: 1; }
+    .btn-archived-back { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 7px 13px; font-size: 13px; font-weight: 600; font-family: inherit; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-archived-back:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-mark-complete { width: 100%; margin-top: 10px; padding: 12px; background: rgba(41,128,185,.08); border: 1.5px solid rgba(41,128,185,.4); border-radius: var(--r); color: #1a6fa0; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .2s, border-color .2s; }
+    .btn-mark-complete:hover { background: rgba(41,128,185,.15); border-color: #2980b9; }
+    .d-btn-complete { background: rgba(41,128,185,.1); border: 1px solid rgba(41,128,185,.4); color: #1a6fa0; }
     .completion-badge { flex-shrink: 0; text-align: right; }
     .completion-pct { font-size: 20px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
     .completion-lbl { font-size: 10px; color: var(--muted); }
@@ -512,6 +522,7 @@
       <div class="form-group"><textarea id="f-tech-note" placeholder="深掘りしたい気づき、工夫、今後の研究テーマ…" data-i18n-ph="phTech"></textarea></div>
     </div>
     <button class="btn-primary" id="btn-save" data-i18n="btnSave">記録を保存する</button>
+    <button class="btn-mark-complete" id="btn-mark-complete" style="display:none" data-i18n="btnMarkComplete">入力完了</button>
   </div>
 
   <div class="view" id="view-list">
@@ -552,6 +563,31 @@
       <input type="search" id="search-input" placeholder="顧客名・会場・メーカー・モデルで検索…" data-i18n-ph="searchPh">
     </div>
     <div id="records-list"></div>
+    <button class="btn-go-archived" id="btn-go-archived">アーカイブ (0)</button>
+  </div>
+
+  <div class="view" id="view-archived">
+    <div class="archived-header">
+      <button class="btn-archived-back" id="archived-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span data-i18n="archivedBack">一覧に戻る</span>
+      </button>
+      <h2 id="archived-heading">アーカイブ</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select class="filter-select" id="archived-filter-type">
+          <option value="" data-i18n="filterAll">すべて</option>
+          <option value="concert" data-i18n="wtConcert">コンサート調律</option>
+          <option value="maintenance" data-i18n="wtMaintenance">保守点検</option>
+          <option value="pre-shipment" data-i18n="wtPreShipment">出荷前</option>
+          <option value="inspection" data-i18n="wtInspection">点検</option>
+        </select>
+      </div>
+    </div>
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" id="archived-search-input" placeholder="顧客名・会場・メーカー・モデルで検索…" data-i18n-ph="searchPh">
+    </div>
+    <div id="archived-records-list"></div>
   </div>
 
   <div class="view" id="view-detail"><div id="detail-body"></div></div>
@@ -619,6 +655,15 @@ const I18N = {
     toastSaved:'記録を保存しました', toastUpdated:'変更を保存しました', toastAutoSaved:'自動保存しました',
     toastDeleted:'記録を削除しました', toastMd:'MDをダウンロードしました',
     mdExportedBadge:'MD出力済み', needsExportBadge:'再出力必要',
+    statusInProgress:'入力途中', statusReady:'入力完了', statusArchived:'アーカイブ',
+    btnMarkComplete:'入力完了にする',
+    archivedBtn:(n)=>`アーカイブ (${n})`,
+    archivedBack:'一覧に戻る',
+    archivedHeading:(n)=>`アーカイブ (${n})`,
+    listHeadingActive:(n)=>`作業中の記録 (${n})`,
+    listEmptyActive:'作業中の記録はありません', listEmptyActiveSub:'「新規記録」から記録を追加してください',
+    archivedEmpty:'アーカイブなし', archivedEmptySub:'MD出力済みの記録がここに表示されます',
+    toastMarkedComplete:'入力完了にしました',
     toastCopied:'コピーしました', toastCopyFail:'コピーに失敗しました',
     jsonExport:'JSONバックアップ', jsonImport:'JSONインポート',
     toastJsonExported:'バックアップをダウンロードしました',
@@ -702,6 +747,15 @@ const I18N = {
     toastSaved:'Record saved', toastUpdated:'Changes saved', toastAutoSaved:'Auto Saved',
     toastDeleted:'Record deleted', toastMd:'MD downloaded',
     mdExportedBadge:'MD Exported', needsExportBadge:'Needs Export',
+    statusInProgress:'In Progress', statusReady:'Ready to Export', statusArchived:'Archived',
+    btnMarkComplete:'Mark Complete',
+    archivedBtn:(n)=>`Archived (${n})`,
+    archivedBack:'Back to List',
+    archivedHeading:(n)=>`Archived (${n})`,
+    listHeadingActive:(n)=>`Active Records (${n})`,
+    listEmptyActive:'No active records', listEmptyActiveSub:'Add a new record from "New Record"',
+    archivedEmpty:'Nothing archived yet', archivedEmptySub:'Records exported to MD will appear here',
+    toastMarkedComplete:'Marked as complete',
     toastCopied:'Copied', toastCopyFail:'Copy failed',
     jsonExport:'Backup JSON', jsonImport:'Import JSON',
     toastJsonExported:'Backup downloaded',
@@ -1042,8 +1096,9 @@ let currentWorkType  = '';
 let isDK             = false;
 let summaryItems     = [];
 let obsidianMode     = localStorage.getItem('obsidianMode') !== 'false'; // default ON
-let currentDetailRec = null;
-let editingId        = null;
+let currentDetailRec  = null;
+let detailOriginView  = 'list';
+let editingId         = null;
 let isDirty          = false;
 let autoSaveTimer    = null;
 let activeTags       = new Set();
@@ -1065,18 +1120,26 @@ function save()  { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
 /* =====================================================
    VIEWS
 ===================================================== */
+function recStatus(rec) {
+  return rec.status || 'archived';
+}
+
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + id).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(t =>
-    t.classList.toggle('active', t.dataset.view === id || (id === 'detail' && t.dataset.view === 'list')));
+  document.querySelectorAll('.nav-tab').forEach(tab =>
+    tab.classList.toggle('active', tab.dataset.view === id ||
+      (id === 'detail' && tab.dataset.view === 'list') ||
+      (id === 'archived' && tab.dataset.view === 'list')));
   if (id === 'list') renderList();
+  if (id === 'archived') renderArchived();
   updateNavCount();
 }
 function updateNavCount() {
+  const active = records.filter(r => recStatus(r) !== 'archived').length;
   const el = document.getElementById('nav-count');
-  el.textContent = records.length;
-  el.style.display = records.length > 0 ? 'inline-block' : 'none';
+  el.textContent = active;
+  el.style.display = active > 0 ? 'inline-block' : 'none';
 }
 
 /* =====================================================
@@ -1523,15 +1586,19 @@ function performSave(isAuto) {
   if (editingId) {
     const idx = records.findIndex(r => r.id === editingId);
     if (idx !== -1) {
-      const wasExported = records[idx].markdown_exported;
-      records[idx] = { ...records[idx], ...recData };
-      if (wasExported) { records[idx].markdown_exported = false; records[idx].edited_after_export = true; }
+      const prev = records[idx];
+      records[idx] = { ...prev, ...recData };
+      // archived → ready_to_export (再MD出力が必要)
+      if (recStatus(prev) === 'archived') records[idx].status = 'ready_to_export';
+      else records[idx].status = recStatus(prev); // in_progress / ready_to_export 維持
     }
+    document.getElementById('btn-mark-complete').style.display = 'block';
   } else {
     const newId = Date.now().toString();
-    records.unshift({ id: newId, ...recData });
+    records.unshift({ id: newId, ...recData, status: 'in_progress' });
     editingId = newId;
     document.getElementById('btn-save').textContent = t('btnUpdate');
+    document.getElementById('btn-mark-complete').style.display = 'block';
   }
   save();
   updateNavCount();
@@ -1552,6 +1619,7 @@ function clearForm() {
   currentPianoType = 'grand'; currentWorkType = ''; isDK = false;
   initChecklist(); buildScenes(); resetEvalForm();
   document.getElementById('btn-save').textContent = t('btnSave');
+  document.getElementById('btn-mark-complete').style.display = 'none';
 }
 
 function markDirty() {
@@ -1561,6 +1629,17 @@ function markDirty() {
 }
 
 document.getElementById('btn-save').addEventListener('click', () => performSave(false));
+document.getElementById('btn-mark-complete').addEventListener('click', () => {
+  if (!editingId) { performSave(false); }
+  const rec = records.find(r => r.id === editingId);
+  if (!rec) return;
+  if (recStatus(rec) === 'in_progress') {
+    rec.status = 'ready_to_export';
+    save(); updateNavCount();
+    document.getElementById('btn-mark-complete').style.display = 'none';
+    toast(t('toastMarkedComplete'));
+  }
+});
 // dirty tracking — delegate on entire new-record view
 document.getElementById('view-new').addEventListener('input',  markDirty);
 document.getElementById('view-new').addEventListener('change', markDirty);
@@ -1573,65 +1652,110 @@ function renderList() {
   const q   = (document.getElementById('search-input').value || '').trim().toLowerCase();
   const con = document.getElementById('records-list');
   con.innerHTML = '';
-  let filtered = ft ? records.filter(r => r.workType === ft) : records;
-  if (q) {
-    filtered = filtered.filter(r => {
-      const tags = computeAutoTags(r).join(' ');
-      return [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
-        .filter(Boolean).join(' ').toLowerCase().includes(q);
-    });
-  }
-  document.getElementById('list-heading').textContent = t('listHeading', filtered.length);
-  if (!filtered.length) {
-    con.innerHTML = `<div class="empty-state"><h3>${t('listEmpty')}</h3><p>${t('listEmptySub')}</p></div>`;
+
+  // アクティブ記録のみ (in_progress / ready_to_export)
+  let active = records.filter(r => recStatus(r) !== 'archived');
+  if (ft) active = active.filter(r => r.workType === ft);
+  if (q)  active = active.filter(r => {
+    const tags = computeAutoTags(r).join(' ');
+    return [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
+      .filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
+
+  document.getElementById('list-heading').textContent = t('listHeadingActive', active.length);
+
+  // Archived ボタンのカウント更新
+  const archivedCount = records.filter(r => recStatus(r) === 'archived').length;
+  document.getElementById('btn-go-archived').textContent = t('archivedBtn', archivedCount);
+
+  if (!active.length) {
+    con.innerHTML = `<div class="empty-state"><h3>${t('listEmptyActive')}</h3><p>${t('listEmptyActiveSub')}</p></div>`;
     return;
   }
-  const MAX_TAGS = 3;
-  filtered.forEach(rec => {
-    const [y, m, d] = rec.date.split('-');
-    const pct = calcPct(rec);
+  active.forEach(rec => renderRecordCard(rec, con));
+}
 
-    // 楽器表示: model #serial → model → pianoLabel
-    const instrument = rec.model
-      ? esc(rec.model) + (rec.serial ? ' #' + esc(rec.serial) : '')
-      : esc(pianoLabel(rec.type));
-    const metaLine = instrument + (rec.workType ? ' · ' + esc(workTypeLabel(rec.workType)) : '');
+function renderArchived() {
+  const ft  = document.getElementById('archived-filter-type').value;
+  const q   = (document.getElementById('archived-search-input').value || '').trim().toLowerCase();
+  const con = document.getElementById('archived-records-list');
+  con.innerHTML = '';
 
-    // タグ表示 (computeAutoTags を使用)
-    const autoTags   = computeAutoTags(rec);
-    const shownTags  = autoTags.slice(0, MAX_TAGS);
-    const extraCount = autoTags.length - MAX_TAGS;
-    const tagsHtml   = autoTags.length
-      ? '<div class="rc-tags">' +
-        shownTags.map(tag => `<span class="rc-tag">#${esc(tag)}</span>`).join('') +
-        (extraCount > 0 ? `<span class="rc-tag rc-tag-more">+${extraCount}</span>` : '') +
-        '</div>'
-      : '';
-
-    const mdState = rec.edited_after_export ? 'needs' : rec.markdown_exported ? 'exported' : null;
-    const mdBadge = mdState
-      ? `<span class="rc-md-badge rc-badge-${mdState}">${mdState === 'needs' ? t('needsExportBadge') : t('mdExportedBadge')}</span>`
-      : '';
-
-    const card = document.createElement('div');
-    card.className = 'record-card' + (mdState === 'exported' ? ' rc-md-exported' : mdState === 'needs' ? ' rc-needs-export' : '');
-    card.innerHTML = `
-      <div class="date-badge"><div class="ym">${y}/${m}</div><div class="dd">${d}</div></div>
-      <div class="record-info">
-        <div class="record-title">${esc(rec.customer || t('noClient'))}</div>
-        <div class="record-meta">
-          <span class="rc-instrument">${metaLine}</span>
-          ${rec.disklavier ? `<span>${t('diskMeta')}</span>` : ''}
-        </div>
-        ${tagsHtml}${mdBadge}
-      </div>
-      <div class="completion-badge"><div class="completion-pct">${pct}%</div><div class="completion-lbl">${t('pctDone')}</div></div>`;
-    card.addEventListener('click', () => showDetail(rec.id));
-    con.appendChild(card);
+  let archived = records.filter(r => recStatus(r) === 'archived');
+  if (ft) archived = archived.filter(r => r.workType === ft);
+  if (q)  archived = archived.filter(r => {
+    const tags = computeAutoTags(r).join(' ');
+    return [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
+      .filter(Boolean).join(' ').toLowerCase().includes(q);
   });
+
+  document.getElementById('archived-heading').textContent = t('archivedHeading', archived.length);
+
+  if (!archived.length) {
+    con.innerHTML = `<div class="empty-state"><h3>${t('archivedEmpty')}</h3><p>${t('archivedEmptySub')}</p></div>`;
+    return;
+  }
+  archived.forEach(rec => renderRecordCard(rec, con));
+}
+
+function statusBadge(rec) {
+  const s = recStatus(rec);
+  if (s === 'in_progress')   return `<span class="rc-status rc-status-progress">🟠 ${t('statusInProgress')}</span>`;
+  if (s === 'ready_to_export') return `<span class="rc-status rc-status-ready">🔵 ${t('statusReady')}</span>`;
+  return `<span class="rc-status rc-status-archived">🟢 ${t('statusArchived')}</span>`;
+}
+
+function renderRecordCard(rec, container) {
+  const [y, m, d] = rec.date.split('-');
+  const pct = calcPct(rec);
+  const s   = recStatus(rec);
+
+  const instrument = rec.model
+    ? esc(rec.model) + (rec.serial ? ' #' + esc(rec.serial) : '')
+    : esc(pianoLabel(rec.type));
+  const metaLine = instrument + (rec.workType ? ' · ' + esc(workTypeLabel(rec.workType)) : '');
+
+  const autoTags   = computeAutoTags(rec);
+  const MAX_TAGS   = 3;
+  const shownTags  = autoTags.slice(0, MAX_TAGS);
+  const extraCount = autoTags.length - MAX_TAGS;
+  const tagsHtml   = autoTags.length
+    ? '<div class="rc-tags">' +
+      shownTags.map(tag => `<span class="rc-tag">#${esc(tag)}</span>`).join('') +
+      (extraCount > 0 ? `<span class="rc-tag rc-tag-more">+${extraCount}</span>` : '') +
+      '</div>'
+    : '';
+
+  const cardCls = 'record-card' +
+    (s === 'in_progress'    ? ' rc-card-progress' :
+     s === 'ready_to_export' ? ' rc-card-ready'    : '');
+
+  const card = document.createElement('div');
+  card.className = cardCls;
+  card.innerHTML = `
+    <div class="date-badge"><div class="ym">${y}/${m}</div><div class="dd">${d}</div></div>
+    <div class="record-info">
+      <div class="record-title">${esc(rec.customer || t('noClient'))}</div>
+      <div class="record-meta">
+        <span class="rc-instrument">${metaLine}</span>
+        ${rec.disklavier ? `<span>${t('diskMeta')}</span>` : ''}
+      </div>
+      ${tagsHtml}
+      ${statusBadge(rec)}
+    </div>
+    <div class="completion-badge"><div class="completion-pct">${pct}%</div><div class="completion-lbl">${t('pctDone')}</div></div>`;
+  card.addEventListener('click', () => {
+    detailOriginView = container.id === 'archived-records-list' ? 'archived' : 'list';
+    showDetail(rec.id);
+  });
+  container.appendChild(card);
 }
 document.getElementById('filter-type').addEventListener('change', renderList);
 document.getElementById('search-input').addEventListener('input', renderList);
+document.getElementById('btn-go-archived').addEventListener('click', () => showView('archived'));
+document.getElementById('archived-back').addEventListener('click', () => showView('list'));
+document.getElementById('archived-filter-type').addEventListener('change', renderArchived);
+document.getElementById('archived-search-input').addEventListener('input', renderArchived);
 // ── Data menu toggle ──
 const dataMenuBtn  = document.getElementById('btn-data-menu');
 const dataMenu     = document.getElementById('data-menu');
@@ -1814,6 +1938,7 @@ function showDetail(id) {
 
     <div class="d-action-bar">
       <button class="d-btn d-btn-primary" id="d-edit">${IC.edit}${t('detailEdit')}</button>
+      ${recStatus(rec) === 'in_progress' ? `<button class="d-btn d-btn-complete" id="d-complete">🔵 ${t('btnMarkComplete')}</button>` : ''}
       <button class="d-btn d-btn-secondary" id="d-md">${IC.md}${t('detailMdBtn')}</button>
       ${summaryItems.length ? `<button class="d-btn d-btn-secondary" id="d-copy-sb">${IC.copy}${t('detailCopySb')}</button>` : ''}
       <div class="d-more-wrap">
@@ -1836,11 +1961,20 @@ function showDetail(id) {
     ${rec.techNote ? `<div class="card"><div class="card-title">${t('cardTechD')}</div><div class="memo-box">${esc(rec.techNote)}</div></div>` : ''}`;
 
   // ── Back ──
-  document.getElementById('d-back').addEventListener('click', () => showView('list'));
+  document.getElementById('d-back').addEventListener('click', () => showView(detailOriginView));
 
   // ── Primary actions ──
   document.getElementById('d-edit').addEventListener('click', () => populateFormForEdit(rec));
   document.getElementById('d-md').addEventListener('click',   () => exportMD(rec));
+  document.getElementById('d-complete')?.addEventListener('click', () => {
+    const stored = records.find(r => r.id === rec.id);
+    if (stored && recStatus(stored) === 'in_progress') {
+      stored.status = 'ready_to_export';
+      save(); updateNavCount();
+      toast(t('toastMarkedComplete'));
+      showDetail(rec.id); // ボタンを更新するため再描画
+    }
+  });
 
   // ── Copy Summary (action bar) ──
   document.getElementById('d-copy-sb')?.addEventListener('click', () => {
@@ -2402,6 +2536,9 @@ function populateFormForEdit(rec) {
   restoreChecklistUI();
   restoreTuningUI();
   document.getElementById('btn-save').textContent = t('btnUpdate');
+  // in_progress の記録のみ「入力完了」ボタンを表示
+  const cmpBtn = document.getElementById('btn-mark-complete');
+  cmpBtn.style.display = recStatus(rec) === 'in_progress' ? 'block' : 'none';
   showView('new');
   restoreEvalForm();   // called AFTER showView so the inputs are visible when values are set
   window.scrollTo(0, 0);
@@ -2592,7 +2729,7 @@ function exportMD(rec) {
   dlBlob(new Blob([md], { type: 'text/markdown;charset=utf-8;' }), fname);
   toast(t('toastMd'));
   const stored = records.find(r => r.id === rec.id);
-  if (stored) { stored.markdown_exported = true; stored.edited_after_export = false; save(); }
+  if (stored) { stored.status = 'archived'; stored.markdown_exported = true; stored.edited_after_export = false; save(); updateNavCount(); }
 }
 
 function dlBlob(blob, name) {
@@ -2815,6 +2952,8 @@ document.getElementById('lang-btn').addEventListener('click', () => {
   // re-render dynamic views if currently shown
   const listView = document.getElementById('view-list');
   if (listView.classList.contains('active')) renderList();
+  const archivedView = document.getElementById('view-archived');
+  if (archivedView.classList.contains('active')) renderArchived();
   const detailView = document.getElementById('view-detail');
   if (detailView.classList.contains('active') && currentDetailRec) showDetail(currentDetailRec.id);
 });
