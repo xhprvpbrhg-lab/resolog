@@ -219,6 +219,13 @@
     .mm-row-lb { font-size: 11px; color: var(--muted); display: flex; align-items: center; }
     .mm-input { width: 100%; padding: 5px 2px; border: 1px solid var(--border); border-radius: 5px; font-size: 14px; font-family: inherit; text-align: center; color: var(--text); background: #FAFAF7; -webkit-appearance: none; appearance: none; }
     .mm-input:focus { outline: none; border-color: var(--accent); }
+    .measure-rows { margin-top: 7px; display: flex; flex-direction: column; gap: 4px; }
+    .measure-row { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+    .measure-label { min-width: 44px; color: var(--muted); font-weight: 600; font-size: 11px; }
+    .measure-input { width: 72px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 5px; font-size: 14px; font-family: inherit; text-align: center; color: var(--text); background: #FAFAF7; -webkit-appearance: none; appearance: none; }
+    .measure-input:focus { outline: none; border-color: var(--accent); }
+    .measure-unit { color: var(--muted); font-size: 11px; font-weight: 600; }
+    .measure-detail { font-size: 12px; color: var(--muted); margin-top: 3px; }
     .mm-detail-tbl { font-size: 12px; border-collapse: collapse; margin-top: 4px; }
     .mm-detail-tbl th, .mm-detail-tbl td { padding: 2px 8px; text-align: center; }
     .mm-detail-tbl th:first-child, .mm-detail-tbl td:first-child { text-align: left; padding-left: 0; color: var(--muted); font-weight: 400; }
@@ -1048,7 +1055,7 @@ const SCENES_UP = [
         { id: 'damperPedal',  label: 'ダンパーペダル',       enLabel: 'Damper Pedal',       hasMemo: true, tags: ALL },
         { id: 'damperMute',   label: 'ダンパー止音',         enLabel: 'Damper Mute',        hasMemo: true, tags: ALL },
         { id: 'damperRaise',  label: 'ダンパー総上げ',       enLabel: 'Full Damper Lift',   hasMemo: true, tags: MC  },
-        { id: 'spoonHook',    label: 'スプーン掛け',         enLabel: 'Damper Spoon',       hasMemo: true, tags: ALL },
+        { id: 'spoonHook',    label: 'スプーン掛け',         enLabel: 'Damper Spoon',       hasMeasure: true, tags: ALL },
         { id: 'damperStop',   label: 'ダンパーストップレール', enLabel: 'Damper Stop Rail', hasMemo: true, tags: ALL },
         { id: 'softPedal',    label: 'ソフトペダル',         enLabel: 'Soft Pedal',         hasMemo: true, tags: ALL },
         { id: 'mufflerPedal', label: 'マフラーペダル',       enLabel: 'Muffler Pedal',      hasMemo: true, tags: ALL },
@@ -1156,7 +1163,8 @@ function initChecklist() {
       const st = { checked: false };
       if (item.hasMemo)    st.memo = '';
       if (item.hasClimate) { st.temp = ''; st.humidity = ''; }
-      if (item.hasMm)    { st.mm = { bass: { before: '', after: '' }, mid: { before: '', after: '' }, treble: { before: '', after: '' } }; st.memo = ''; }
+      if (item.hasMm)      { st.mm = { bass: { before: '', after: '' }, mid: { before: '', after: '' }, treble: { before: '', after: '' } }; st.memo = ''; }
+      if (item.hasMeasure) { st.before = ''; st.after = ''; st.memo = ''; }
       checklist[s.id][item.id] = st;
     }));
   });
@@ -1276,6 +1284,34 @@ function buildChecklistPanel(panel, scene) {
         mmMemo.type = 'text'; mmMemo.className = 'item-memo'; mmMemo.placeholder = t('phMmMemo');
         mmMemo.addEventListener('input', e => { const st = checklist[scene.id]?.[item.id]; if (st) st.memo = e.target.value; });
         wrapper.appendChild(mmMemo);
+      }
+      if (item.hasMeasure) {
+        const rows = document.createElement('div');
+        rows.className = 'measure-rows';
+        ['before', 'after'].forEach(phase => {
+          const row = document.createElement('div');
+          row.className = 'measure-row';
+          const lbl = document.createElement('span');
+          lbl.className = 'measure-label';
+          lbl.textContent = phase === 'before' ? t('tunePre') : t('tunePost');
+          const inp = document.createElement('input');
+          inp.type = 'number'; inp.className = 'measure-input'; inp.placeholder = '—'; inp.step = '0.5';
+          inp.dataset.phase = phase;
+          inp.addEventListener('input', e => {
+            const st = checklist[scene.id]?.[item.id];
+            if (st) st[e.target.dataset.phase] = e.target.value;
+          });
+          const unit = document.createElement('span');
+          unit.className = 'measure-unit';
+          unit.textContent = 'mm';
+          row.appendChild(lbl); row.appendChild(inp); row.appendChild(unit);
+          rows.appendChild(row);
+        });
+        wrapper.appendChild(rows);
+        const msMemo = document.createElement('input');
+        msMemo.type = 'text'; msMemo.className = 'item-memo'; msMemo.placeholder = t('phMmMemo');
+        msMemo.addEventListener('input', e => { const st = checklist[scene.id]?.[item.id]; if (st) st.memo = e.target.value; });
+        wrapper.appendChild(msMemo);
       }
 
       cb.addEventListener('change', () => {
@@ -1871,6 +1907,10 @@ function showDetail(id) {
           extra += `<div class="detail-climate">${parts.join(' / ')}</div>`;
         }
         if (item.hasMemo && st.memo) extra += `<div class="detail-memo">${esc(st.memo)}</div>`;
+        if (item.hasMeasure && (st.before || st.after)) {
+          extra += `<div class="measure-detail">${t('tunePre')} ${st.before || '—'}mm → ${t('tunePost')} ${st.after || '—'}mm</div>`;
+          if (st.memo) extra += `<div class="detail-memo">${esc(st.memo)}</div>`;
+        }
         if (item.hasMm && st.mm) {
           const zones = [['bass', t('zoneBass')],['mid', t('zoneMid')],['treble', t('zoneTreble')]];
           const hasData = zones.some(([z]) => st.mm[z]?.before || st.mm[z]?.after);
@@ -2156,7 +2196,7 @@ function buildSummaryItems(rec) {
           }).filter(Boolean);
           if (parts.length) defaultText += '（' + parts.join(' / ') + '）';
           if (st.memo) defaultText += ' (' + st.memo + ')';
-        } else if (item.hasMemo && st.memo) {
+        } else if ((item.hasMemo || item.hasMeasure) && st.memo) {
           defaultText += ' (' + st.memo + ')';
         } else if (item.hasClimate && (st.temp || st.humidity)) {
           const parts = [st.temp && st.temp + '℃', st.humidity && st.humidity + '%'].filter(Boolean);
@@ -2458,6 +2498,10 @@ function restoreChecklistUI() {
         wrapper.querySelectorAll('.mm-input').forEach(inp => { const v = st.mm[inp.dataset.zone]?.[inp.dataset.phase]; if (v) inp.value = v; });
         const mm = wrapper.querySelector('.item-memo'); if (mm && st.memo) mm.value = st.memo;
       }
+      if (item.hasMeasure) {
+        wrapper.querySelectorAll('.measure-input').forEach(inp => { if (st[inp.dataset.phase]) inp.value = st[inp.dataset.phase]; });
+        const m = wrapper.querySelector('.item-memo'); if (m && st.memo) m.value = st.memo;
+      }
     }));
     updateProgress(scene);
   });
@@ -2525,6 +2569,7 @@ function populateFormForEdit(rec) {
         if (item.hasMemo)    st.memo = '';
         if (item.hasClimate) { st.temp = ''; st.humidity = ''; }
         if (item.hasMm)      { st.mm = { bass:{before:'',after:''}, mid:{before:'',after:''}, treble:{before:'',after:''} }; st.memo = ''; }
+        if (item.hasMeasure) { st.before = ''; st.after = ''; st.memo = ''; }
         checklist[s.id][item.id] = st;
       }
     }));
@@ -2688,7 +2733,7 @@ function exportMD(rec) {
             if (st.memo) md += '  - ' + st.memo + '\n';
           } else {
             md += '- ' + iLabel(item) + '\n';
-            if (item.hasMemo && st.memo) md += '  - ' + st.memo + '\n';
+            if ((item.hasMemo || item.hasMeasure) && st.memo) md += '  - ' + st.memo + '\n';
             if (item.hasClimate && (st.temp || st.humidity))
               md += '  - ' + [st.temp && st.temp + '℃', st.humidity && st.humidity + '%'].filter(Boolean).join(' / ') + '\n';
           }
