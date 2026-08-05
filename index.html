@@ -152,6 +152,13 @@
 
     .top-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     /* ---- Asset Suggest Panel ---- */
+    .artist-tags-wrap { border: 1px solid var(--border); border-radius: var(--r); padding: 6px 8px; background: #FAFAF7; min-height: 40px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; cursor: text; }
+    .artist-tags-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,168,122,.18); }
+    .artist-chip { display: inline-flex; align-items: center; gap: 4px; background: rgba(24,29,54,.08); border: 1px solid rgba(24,29,54,.18); border-radius: 20px; padding: 3px 5px 3px 10px; font-size: 13px; color: var(--text); white-space: nowrap; }
+    .artist-chip-rm { cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1; padding: 0 3px; border-radius: 50%; transition: background .15s, color .15s; }
+    .artist-chip-rm:hover { background: rgba(185,64,64,.15); color: #b94040; }
+    .artist-tag-input { border: none; outline: none; background: transparent; font-size: 13px; font-family: inherit; color: var(--text); min-width: 120px; flex: 1; padding: 3px 4px; }
+    .artist-tag-input::placeholder { color: var(--muted); }
     .asset-suggest { background: var(--card); border: 1.5px solid var(--accent); border-radius: var(--r); padding: 14px 16px; margin-top: 10px; }
     .as-title { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: .12em; margin-bottom: 6px; }
     .as-name  { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
@@ -430,9 +437,12 @@
           <datalist id="dl-location"></datalist>
         </div>
         <div class="form-group">
-          <label for="f-customer" data-i18n="lblCustomer">顧客 / アーティスト</label>
-          <input type="text" id="f-customer" list="dl-customer" placeholder="例：山田 花子、〇〇カルテット" data-i18n-ph="phCustomer" autocomplete="off">
-          <datalist id="dl-customer"></datalist>
+          <label data-i18n="lblCustomer">顧客 / アーティスト</label>
+          <div class="artist-tags-wrap" id="f-artists-wrap">
+            <span id="f-artists-chips"></span>
+            <input type="text" id="f-customer-input" list="dl-customer" placeholder="名前を入力してEnterで追加" data-i18n-ph="phCustomer" autocomplete="off" class="artist-tag-input">
+            <datalist id="dl-customer"></datalist>
+          </div>
           <select id="f-client-type" style="margin-top:6px;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;color:var(--muted);background:#fff;cursor:pointer;">
             <option value="artist" data-i18n="ctArtist">アーティスト</option>
             <option value="corporate" data-i18n="ctCorporate">企業 / 団体</option>
@@ -643,6 +653,7 @@ const I18N = {
     listEmpty:'記録がありません', listEmptySub:'「新規記録」から作業記録を追加してください',
     memoTag:'メモあり', diskMeta:'Disklavier搭載',
     noClient:'（顧客名なし）', pctDone:'完了',
+    phArtistInput:'名前を入力してEnterで追加',
     detailBack:'一覧に戻る', detailEdit:'編集', detailMdBtn:'MDエクスポート',
     detailMdBtnBottom:'MDエクスポート ↓', detailDel:'削除',
     detailMore:'その他', detailCopySb:'サマリーコピー',
@@ -735,6 +746,7 @@ const I18N = {
     listEmpty:'No records found', listEmptySub:'Add a new record from "New Record"',
     memoTag:'Has Notes', diskMeta:'Disklavier',
     noClient:'(No Client)', pctDone:'Done',
+    phArtistInput:'Type name and press Enter to add',
     detailBack:'Back to List', detailEdit:'Edit', detailMdBtn:'Export MD',
     detailMdBtnBottom:'Export MD ↓', detailDel:'Delete',
     detailMore:'More', detailCopySb:'Copy Summary',
@@ -1106,6 +1118,7 @@ let obsidianMode     = localStorage.getItem('obsidianMode') !== 'false'; // defa
 let currentDetailRec  = null;
 let detailOriginView  = 'list';
 let editingId         = null;
+let currentArtists    = [];
 let isDirty          = false;
 let autoSaveTimer    = null;
 let activeTags       = new Set();
@@ -1114,6 +1127,39 @@ let customTags       = new Set();
 /* =====================================================
    HELPERS
 ===================================================== */
+function getArtists(rec) {
+  if (Array.isArray(rec.artists) && rec.artists.length) return rec.artists;
+  if (rec.customer) return [rec.customer];
+  return [];
+}
+
+function renderArtistChips() {
+  const chips = document.getElementById('f-artists-chips');
+  if (!chips) return;
+  chips.innerHTML = currentArtists.map((name, i) =>
+    `<span class="artist-chip">${esc(name)}<span class="artist-chip-rm" data-idx="${i}" title="削除">×</span></span>`
+  ).join('');
+  chips.querySelectorAll('.artist-chip-rm').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentArtists.splice(+btn.dataset.idx, 1);
+      renderArtistChips();
+      markDirty();
+    });
+  });
+}
+
+function addArtistFromInput() {
+  const inp = document.getElementById('f-customer-input');
+  if (!inp) return;
+  const name = inp.value.trim();
+  if (name && !currentArtists.includes(name)) {
+    currentArtists.push(name);
+    renderArtistChips();
+    markDirty();
+  }
+  inp.value = '';
+}
+
 function getScenes()        { return currentPianoType === 'upright' ? SCENES_UP : SCENES_GP; }
 function getScenesFor(t)    { return t === 'upright' ? SCENES_UP : SCENES_GP; }
 function iLabel(item)       { return (lang === 'en' && item.enLabel) ? item.enLabel : item.label; }
@@ -1597,14 +1643,14 @@ function collectFormData() {
   const serial    = document.getElementById('f-serial').value.trim();
   const lastTuned = document.getElementById('f-last-tuned').value;
   const workType  = document.getElementById('f-work-type').value;
-  const customer  = document.getElementById('f-customer').value.trim();
+  const customer  = currentArtists[0] || '';  // compat: first artist as primary
   const location  = document.getElementById('f-location').value.trim();
   const staff     = document.getElementById('f-staff').value.trim();
   const clientType = document.getElementById('f-client-type').value;
   const memo      = document.getElementById('f-memo').value.trim();
   const techNote  = document.getElementById('f-tech-note').value.trim();
   const disklavier = document.getElementById('f-disklavier').checked;
-  return { date, type, maker, model, serial, lastTuned, workType, customer, clientType, location, staff, memo, techNote, disklavier };
+  return { date, type, maker, model, serial, lastTuned, workType, customer, artists: [...currentArtists], clientType, location, staff, memo, techNote, disklavier };
 }
 
 function performSave(isAuto) {
@@ -1648,7 +1694,8 @@ function clearForm() {
   editingId = null; isDirty = false; clearTimeout(autoSaveTimer);
   document.getElementById('f-date').value = todayStr();
   document.querySelectorAll('input[name="piano-type"]').forEach(r => r.checked = false);
-  ['f-maker','f-model','f-serial','f-last-tuned','f-work-type','f-customer','f-location','f-memo','f-tech-note'].forEach(id => { document.getElementById(id).value = ''; });
+  ['f-maker','f-model','f-serial','f-last-tuned','f-work-type','f-location','f-memo','f-tech-note'].forEach(id => { document.getElementById(id).value = ''; });
+  currentArtists = []; renderArtistChips(); document.getElementById('f-customer-input').value = '';
   document.getElementById('f-client-type').value = 'artist';
   document.getElementById('f-staff').value = 'Shinya Maeda';
   document.getElementById('f-disklavier').checked = false;
@@ -1694,7 +1741,7 @@ function renderList() {
   if (ft) active = active.filter(r => r.workType === ft);
   if (q)  active = active.filter(r => {
     const tags = computeAutoTags(r).join(' ');
-    return [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
+    return [getArtists(r).join(' '), r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
       .filter(Boolean).join(' ').toLowerCase().includes(q);
   });
 
@@ -1721,7 +1768,7 @@ function renderArchived() {
   if (ft) archived = archived.filter(r => r.workType === ft);
   if (q)  archived = archived.filter(r => {
     const tags = computeAutoTags(r).join(' ');
-    return [r.customer, r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
+    return [getArtists(r).join(' '), r.maker, r.model, r.serial, r.location, r.staff, r.workType, r.memo, tags]
       .filter(Boolean).join(' ').toLowerCase().includes(q);
   });
 
@@ -1771,7 +1818,9 @@ function renderRecordCard(rec, container) {
   card.innerHTML = `
     <div class="date-badge"><div class="ym">${y}/${m}</div><div class="dd">${d}</div></div>
     <div class="record-info">
-      <div class="record-title">${esc(rec.customer || t('noClient'))}</div>
+      <div class="record-title">${(artists => artists.length > 1
+        ? esc(artists[0]) + `<span style="font-size:11px;font-weight:600;color:var(--muted);margin-left:5px">+${artists.length - 1}</span>`
+        : artists.length === 1 ? esc(artists[0]) : t('noClient'))(getArtists(rec))}</div>
       <div class="record-meta">
         <span class="rc-instrument">${metaLine}</span>
         ${rec.disklavier ? `<span>${t('diskMeta')}</span>` : ''}
@@ -1931,7 +1980,8 @@ function showDetail(id) {
     scenesHtml += `<div class="detail-scene"><div class="detail-scene-hd"><span>${esc(sName(scene))}</span><span>${sceneDone} / ${sceneTotal}</span></div>${groupsHtml}</div>`;
   });
 
-  const infoRows = [[t('infoMaker'), rec.maker], [t('infoModel'), rec.model], [t('infoSerial'), rec.serial], [t('infoLastTuned'), fmtDate(rec.lastTuned)], [t('infoLocation'), rec.location], [t('infoStaff'), rec.staff], [t('infoClientType'), rec.clientType ? clientTypeLabel(rec.clientType) : null]].filter(([, v]) => v);
+  const artistsDisplay = recArtists.length ? recArtists.join(' / ') : null;
+  const infoRows = [[t('lblCustomer'), artistsDisplay], [t('infoMaker'), rec.maker], [t('infoModel'), rec.model], [t('infoSerial'), rec.serial], [t('infoLastTuned'), fmtDate(rec.lastTuned)], [t('infoLocation'), rec.location], [t('infoStaff'), rec.staff], [t('infoClientType'), rec.clientType ? clientTypeLabel(rec.clientType) : null]].filter(([, v]) => v);
 
   summaryItems = buildSummaryItems(rec);
   currentDetailRec = rec;
@@ -1939,8 +1989,9 @@ function showDetail(id) {
   customTags = new Set();
 
   // Hero: derive a meaningful title line
-  const heroName = rec.customer
-    ? esc(rec.customer)
+  const recArtists = getArtists(rec);
+  const heroName = recArtists.length
+    ? recArtists.map(esc).join(' / ')
     : rec.maker
       ? esc(rec.maker + (rec.model ? ' · ' + rec.model : ''))
       : pianoLabel(rec.type) + (rec.workType ? ' · ' + workTypeLabel(rec.workType) : '');
@@ -2398,16 +2449,15 @@ function buildRelatedNotes(rec) {
   // ref() uses the file-safe name so internal links match the actual filename
   const ref = fn => obsidianMode ? '[[' + fn + ']]' : '"' + fn + '"';
 
-  if (rec.customer) {
-    const n  = rec.customer;                   // display name (untouched)
-    const fn = sanitizeFileName(n);            // file-safe name
+  getArtists(rec).forEach(n => {
+    const fn = sanitizeFileName(n);
     const fm = ['---', 'type: client', 'name: ' + n];
     if (rec.clientType) fm.push('client_type: ' + rec.clientType);
     fm.push('tags:\n  - client', '---');
     const content = fm.join('\n') + '\n\n# ' + n + '\n\n## Related Logs\n\n' +
-      DV('LIST FROM "20_Tuning/Sessions"\nWHERE client = ' + ref(fn) + '\nSORT date DESC');
+      DV('LIST FROM "20_Tuning/Sessions"\nWHERE contains(artists, ' + ref(fn) + ')\nSORT date DESC');
     notes.push({ type: 'client', label: 'Client', name: n, path: 'Clients/' + fn + '.md', content });
-  }
+  });
 
   if (rec.location) {
     const n  = rec.location;
@@ -2548,7 +2598,8 @@ function populateFormForEdit(rec) {
   document.getElementById('f-serial').value  = rec.serial   || '';
   document.getElementById('f-last-tuned').value = rec.lastTuned || '';
   document.getElementById('f-work-type').value  = rec.workType  || '';
-  document.getElementById('f-customer').value   = rec.customer  || '';
+  currentArtists = [...getArtists(rec)]; renderArtistChips();
+  document.getElementById('f-customer-input').value = '';
   document.getElementById('f-client-type').value = rec.clientType || 'artist';
   document.getElementById('f-location').value = rec.location || '';
   document.getElementById('f-staff').value    = rec.staff    || 'Shinya Maeda';
@@ -2624,7 +2675,7 @@ function exportCSV() {
   const rows = records.map(rec => {
     const td = rec.tuningData || {};
     return [rec.date||'', PIANO_LABELS[rec.type]||rec.type||'', rec.maker||'', rec.model||'', rec.serial||'', rec.lastTuned||'',
-      WORK_TYPE_LABELS[rec.workType]||rec.workType||'', rec.clientType||'', rec.customer||'', rec.location||'', rec.staff||'',
+      WORK_TYPE_LABELS[rec.workType]||rec.workType||'', rec.clientType||'', getArtists(rec).join('; '), rec.location||'', rec.staff||'',
       rec.disklavier ? '搭載' : '', td.pitchBefore||'', td.pitchAfter||'',
       td.preCondition||'', td.postComment||'', td.stringPinMemo||'', calcPct(rec)+'', rec.savedAt||'',
     ].map(v => '"' + String(v).replace(/"/g, '""') + '"');
@@ -2670,7 +2721,12 @@ function exportMD(rec) {
 
   let md = '---\n';
   md += 'date: ' + rec.date + '\n';
-  if (rec.customer) { md += 'client: ' + obsLink(rec.customer) + '\nclient_type: ' + (rec.clientType || 'artist') + '\n'; }
+  const mdArtists = getArtists(rec);
+  if (mdArtists.length === 1) {
+    md += 'client: ' + obsLink(mdArtists[0]) + '\nclient_type: ' + (rec.clientType || 'artist') + '\n';
+  } else if (mdArtists.length > 1) {
+    md += 'artists:\n' + mdArtists.map(a => '  - ' + obsLink(a)).join('\n') + '\nclient_type: ' + (rec.clientType || 'artist') + '\n';
+  }
   if (rec.location) md += 'venue: ' + obsLink(rec.location) + '\n';
   if (assetStr)     md += 'asset: ' + obsLink(assetStr) + '\n';
   md += 'asset_type: piano\n';
@@ -2840,7 +2896,15 @@ function buildAllDataLists() {
   fillDatalist('dl-model',    getHistory('model'));
   fillDatalist('dl-maker',    getHistory('maker'));
   fillDatalist('dl-location', getHistory('location'));
-  fillDatalist('dl-customer', getHistory('customer'));
+  // Artists: collect from both new artists[] and legacy customer fields
+  const artistSeen = new Set(), artistList = [];
+  for (const r of records) {
+    for (const a of getArtists(r)) {
+      if (a && !artistSeen.has(a)) { artistSeen.add(a); artistList.push(a); }
+    }
+    if (artistList.length >= 30) break;
+  }
+  fillDatalist('dl-customer', artistList);
   fillDatalist('dl-staff',    getHistory('staff'));
 }
 
@@ -2859,7 +2923,7 @@ function showAssetSuggest(serial) {
     [t('lblModel'),    rec.model],
     [t('lblType'),     rec.type ? pianoLabel(rec.type) : ''],
     [t('lblLocation'), rec.location],
-    [t('lblCustomer'), rec.customer],
+    [t('lblCustomer'), getArtists(rec).join(' / ')],
     [t('lblStaff'),    rec.staff],
   ].filter(([, v]) => v);
 
@@ -2916,7 +2980,12 @@ function showAssetSuggest(serial) {
     fill('f-maker',    rec.maker);
     fill('f-model',    rec.model);
     fill('f-location', rec.location);
-    fill('f-customer', rec.customer);
+    // artists
+    if (!currentArtists.length) {
+      currentArtists = [...getArtists(rec)];
+      renderArtistChips();
+      markDirty();
+    }
     fill('f-staff',    rec.staff);
 
     // ピアノ種別
@@ -2985,6 +3054,22 @@ document.getElementById('f-disklavier').addEventListener('change', e => {
   isDK = e.target.checked; updateDkVisibility();
 });
 document.getElementById('f-serial').addEventListener('change', e => showAssetSuggest(e.target.value.trim()));
+
+// artist tag input
+(function() {
+  const inp = document.getElementById('f-customer-input');
+  const wrap = document.getElementById('f-artists-wrap');
+  if (!inp || !wrap) return;
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addArtistFromInput(); }
+    if (e.key === 'Backspace' && inp.value === '' && currentArtists.length) {
+      currentArtists.pop(); renderArtistChips(); markDirty();
+    }
+  });
+  // datalist selection fires 'change'
+  inp.addEventListener('change', () => { if (inp.value.trim()) addArtistFromInput(); });
+  wrap.addEventListener('click', () => inp.focus());
+})();
 document.getElementById('f-model').addEventListener('change',  e => onModelChange(e.target.value.trim()));
 
 /* =====================================================
