@@ -1980,6 +1980,7 @@ function showDetail(id) {
     scenesHtml += `<div class="detail-scene"><div class="detail-scene-hd"><span>${esc(sName(scene))}</span><span>${sceneDone} / ${sceneTotal}</span></div>${groupsHtml}</div>`;
   });
 
+  const recArtists = getArtists(rec);
   const artistsDisplay = recArtists.length ? recArtists.join(' / ') : null;
   const infoRows = [[t('lblCustomer'), artistsDisplay], [t('infoMaker'), rec.maker], [t('infoModel'), rec.model], [t('infoSerial'), rec.serial], [t('infoLastTuned'), fmtDate(rec.lastTuned)], [t('infoLocation'), rec.location], [t('infoStaff'), rec.staff], [t('infoClientType'), rec.clientType ? clientTypeLabel(rec.clientType) : null]].filter(([, v]) => v);
 
@@ -1989,7 +1990,6 @@ function showDetail(id) {
   customTags = new Set();
 
   // Hero: derive a meaningful title line
-  const recArtists = getArtists(rec);
   const heroName = recArtists.length
     ? recArtists.map(esc).join(' / ')
     : rec.maker
@@ -2105,7 +2105,7 @@ function showDetail(id) {
     moreMenu.classList.remove('open');
     if (!confirm(t('delConfirm'))) return;
     records = records.filter(r => r.id !== id);
-    save(); updateNavCount(); showView('list'); toast(t('toastDeleted'));
+    save(); updateNavCount(); showView(detailOriginView || 'list'); toast(t('toastDeleted'));
   });
 
   // ── Tags / Summary Builder / Related Notes ──
