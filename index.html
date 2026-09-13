@@ -75,14 +75,20 @@
     .checklist-item { display: flex; align-items: flex-start; gap: 11px; cursor: pointer; user-select: none; }
     .checklist-item input[type="checkbox"] { width: 17px; height: 17px; margin-top: 2px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
     .item-label { font-size: 14px; line-height: 1.45; flex: 1; transition: color .2s; }
-    .checklist-item.checked .item-label { color: var(--muted); text-decoration: line-through; }
+    .checklist-item.checked .item-label { color: var(--text); text-decoration: none; }
     .item-hl-dot { font-size: 11px; margin-right: 4px; display: none; }
 
-    .item-wrapper { padding: 8px 0; border-bottom: 1px solid #F0EDE8; transition: opacity .2s; }
+    .item-wrapper { padding: 8px 0; border-bottom: 1px solid #F0EDE8; transition: opacity .2s, border-left-color .2s; }
     .item-wrapper:last-child { border-bottom: none; }
     .item-wrapper .checklist-item { border-bottom: none; padding: 0; }
     .item-wrapper.item-hl .item-hl-dot { display: inline; }
     .item-wrapper.item-gray { opacity: 0.32; }
+    /* 3-state visual: checked = confirmed, adjusted = actually done */
+    .item-wrapper.iw-checked  { border-left: 2px solid rgba(196,168,122,.5); padding-left: 7px; margin-left: -9px; }
+    .item-wrapper.iw-adjusted { border-left: 2px solid var(--success);       padding-left: 7px; margin-left: -9px; }
+    .item-status { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; padding: 1px 7px 2px; border-radius: 10px; margin-top: 5px; display: inline-block; }
+    .item-status-checked  { background: rgba(196,168,122,.13); color: #7B5B20; border: 1px solid rgba(196,168,122,.35); }
+    .item-status-adjusted { background: rgba(76,153,100,.11);  color: #2e6e45; border: 1px solid rgba(76,153,100,.38); }
 
     .item-memo { display: block; width: 100%; margin-top: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; color: var(--text); background: #FAFAF7; }
     .item-memo:focus { outline: none; border-color: var(--accent); }
@@ -197,8 +203,10 @@
     .detail-item:last-child { border-bottom: none; }
     .check-dot { width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
     .check-dot.yes { background: var(--success); color: #fff; }
+    .check-dot.chk { background: rgba(196,168,122,.18); color: #8B6B2F; border: 1.5px solid rgba(196,168,122,.55); font-size: 9px; }
     .check-dot.no  { background: #E8E5E0; color: #E8E5E0; }
-    .detail-item.unchecked { color: var(--muted); }
+    .detail-item.di-untouched { color: var(--muted); }
+    .detail-item.unchecked    { color: var(--muted); } /* legacy compat */
     .detail-memo    { font-size: 12px; color: var(--muted); margin-top: 2px; }
     .detail-climate { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
@@ -674,6 +682,7 @@ const I18N = {
     toastDeleted:'記録を削除しました', toastMd:'MDをダウンロードしました',
     mdExportedBadge:'MD出力済み', needsExportBadge:'再出力必要',
     statusInProgress:'入力途中', statusReady:'入力完了', statusArchived:'アーカイブ',
+    itemChecked:'確認済み', itemAdjusted:'調整済み', itemDone:'実施済み',
     btnMarkComplete:'入力完了にする',
     archivedBtn:(n)=>`アーカイブ (${n})`,
     archivedBack:'一覧に戻る',
@@ -767,6 +776,7 @@ const I18N = {
     toastDeleted:'Record deleted', toastMd:'MD downloaded',
     mdExportedBadge:'MD Exported', needsExportBadge:'Needs Export',
     statusInProgress:'In Progress', statusReady:'Ready to Export', statusArchived:'Archived',
+    itemChecked:'Checked', itemAdjusted:'Adjusted', itemDone:'Done',
     btnMarkComplete:'Mark Complete',
     archivedBtn:(n)=>`Archived (${n})`,
     archivedBack:'Back to List',
@@ -1160,6 +1170,46 @@ function addArtistFromInput() {
   inp.value = '';
 }
 
+// ── 3-state item status ──────────────────────────────
+// Returns 'untouched' | 'checked' | 'adjusted'
+// 'adjusted' requires explicit checkbox; 'checked' = data entered, no checkbox
+function getItemStatus(st, item) {
+  if (!st) return 'untouched';
+  if (st.checked) return 'adjusted';
+  if (item.hasMemo && st.memo) return 'checked';
+  if (item.hasMm && st.mm) {
+    if (['bass','mid','treble'].some(z => st.mm[z]?.before || st.mm[z]?.after) || st.memo) return 'checked';
+  }
+  if (item.hasMeasure && (st.before || st.after || st.memo)) return 'checked';
+  if (item.hasClimate && (st.temp || st.humidity)) return 'checked';
+  return 'untouched';
+}
+
+function refreshItemWrapper(sceneId, item) {
+  const wrapper = document.getElementById('iw-' + sceneId + '-' + item.id);
+  if (!wrapper) return;
+  const st = checklist[sceneId]?.[item.id];
+  const status = getItemStatus(st, item);
+
+  wrapper.classList.remove('iw-checked', 'iw-adjusted');
+  if (status !== 'untouched') wrapper.classList.add('iw-' + status);
+
+  let badge = wrapper.querySelector('.item-status');
+  if (status === 'untouched') {
+    if (badge) badge.remove();
+  } else {
+    if (!badge) {
+      badge = document.createElement('span');
+      wrapper.appendChild(badge);
+    }
+    badge.className = 'item-status item-status-' + status;
+    const isAction = item.hasMemo && !item.hasMm && !item.hasMeasure;
+    badge.textContent = status === 'adjusted'
+      ? t(isAction ? 'itemDone' : 'itemAdjusted')
+      : t('itemChecked');
+  }
+}
+
 function getScenes()        { return currentPianoType === 'upright' ? SCENES_UP : SCENES_GP; }
 function getScenesFor(t)    { return t === 'upright' ? SCENES_UP : SCENES_GP; }
 function iLabel(item)       { return (lang === 'en' && item.enLabel) ? item.enLabel : item.label; }
@@ -1296,14 +1346,14 @@ function buildChecklistPanel(panel, scene) {
         cr.className = 'climate-row';
         cr.innerHTML = `<input type="number" class="climate-input" placeholder="°C" step="0.1"><span>°C</span><input type="number" class="climate-input" placeholder="%" step="1" min="0" max="100"><span>%</span>`;
         const [ti, hi] = cr.querySelectorAll('input');
-        ti.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].temp = e.target.value; });
-        hi.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].humidity = e.target.value; });
+        ti.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].temp = e.target.value; refreshItemWrapper(scene.id, item); });
+        hi.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].humidity = e.target.value; refreshItemWrapper(scene.id, item); });
         wrapper.appendChild(cr);
       }
       if (item.hasMemo) {
         const memo = document.createElement('input');
         memo.type = 'text'; memo.className = 'item-memo'; memo.placeholder = t('phItemMemo');
-        memo.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].memo = e.target.value; });
+        memo.addEventListener('input', e => { if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].memo = e.target.value; refreshItemWrapper(scene.id, item); });
         wrapper.appendChild(memo);
       }
       if (item.hasMm) {
@@ -1323,12 +1373,13 @@ function buildChecklistPanel(panel, scene) {
           inp.addEventListener('input', e => {
             const st = checklist[scene.id]?.[item.id];
             if (st?.mm) st.mm[e.target.dataset.zone][e.target.dataset.phase] = e.target.value;
+            refreshItemWrapper(scene.id, item);
           });
         });
         wrapper.appendChild(grid);
         const mmMemo = document.createElement('input');
         mmMemo.type = 'text'; mmMemo.className = 'item-memo'; mmMemo.placeholder = t('phMmMemo');
-        mmMemo.addEventListener('input', e => { const st = checklist[scene.id]?.[item.id]; if (st) st.memo = e.target.value; });
+        mmMemo.addEventListener('input', e => { const st = checklist[scene.id]?.[item.id]; if (st) st.memo = e.target.value; refreshItemWrapper(scene.id, item); });
         wrapper.appendChild(mmMemo);
       }
       if (item.hasMeasure) {
@@ -1346,6 +1397,7 @@ function buildChecklistPanel(panel, scene) {
           inp.addEventListener('input', e => {
             const st = checklist[scene.id]?.[item.id];
             if (st) st[e.target.dataset.phase] = e.target.value;
+            refreshItemWrapper(scene.id, item);
           });
           const unit = document.createElement('span');
           unit.className = 'measure-unit';
@@ -1356,13 +1408,14 @@ function buildChecklistPanel(panel, scene) {
         wrapper.appendChild(rows);
         const msMemo = document.createElement('input');
         msMemo.type = 'text'; msMemo.className = 'item-memo'; msMemo.placeholder = t('phMmMemo');
-        msMemo.addEventListener('input', e => { const st = checklist[scene.id]?.[item.id]; if (st) st.memo = e.target.value; });
+        msMemo.addEventListener('input', e => { const st = checklist[scene.id]?.[item.id]; if (st) st.memo = e.target.value; refreshItemWrapper(scene.id, item); });
         wrapper.appendChild(msMemo);
       }
 
       cb.addEventListener('change', () => {
         if (checklist[scene.id]?.[item.id]) checklist[scene.id][item.id].checked = cb.checked;
         lbl.classList.toggle('checked', cb.checked);
+        refreshItemWrapper(scene.id, item);
         updateProgress(scene);
         if (group.label) updateGroupCount(scene.id, gi, group);
       });
@@ -1947,7 +2000,7 @@ function showDetail(id) {
       }
       group.items.forEach(item => {
         const st      = sceneState[item.id] || {};
-        const checked = !!st.checked;
+        const status  = getItemStatus(st, item);
         let extra = '';
         if (item.hasClimate && (st.temp || st.humidity)) {
           const parts = [];
@@ -1971,8 +2024,11 @@ function showDetail(id) {
           }
           if (st.memo) extra += `<div class="detail-memo">${esc(st.memo)}</div>`;
         }
-        groupsHtml += `<div class="detail-item ${checked ? '' : 'unchecked'}">
-          <div class="check-dot ${checked ? 'yes' : 'no'}">${checked ? '✓' : ''}</div>
+        const dotCls  = status === 'adjusted' ? 'yes' : status === 'checked' ? 'chk' : 'no';
+        const dotTxt  = status === 'adjusted' ? '✓' : status === 'checked' ? '◉' : '';
+        const itemCls = status === 'untouched' ? 'di-untouched' : '';
+        groupsHtml += `<div class="detail-item ${itemCls}">
+          <div class="check-dot ${dotCls}">${dotTxt}</div>
           <div><span>${esc(iLabel(item))}</span>${extra}</div></div>`;
       });
     });
@@ -2552,6 +2608,7 @@ function restoreChecklistUI() {
         wrapper.querySelectorAll('.measure-input').forEach(inp => { if (st[inp.dataset.phase]) inp.value = st[inp.dataset.phase]; });
         const m = wrapper.querySelector('.item-memo'); if (m && st.memo) m.value = st.memo;
       }
+      refreshItemWrapper(scene.id, item);
     }));
     updateProgress(scene);
   });
