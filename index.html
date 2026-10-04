@@ -385,6 +385,9 @@
     .touch-badge.tb-caution { background: #FFF8E1; color: #E65100; }
     .touch-badge.tb-extreme { background: #FFEBEE; color: #B71C1C; }
     .touch-badge.tb-none    { background: #F0EDE8; color: var(--muted); }
+    .previous-reference { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 5px 0; font-weight: normal; }
+    details.previous-reference { margin-left: 28px; }
+    .previous-reference summary { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -654,7 +657,7 @@ const I18N = {
     btnSave:'記録を保存する', btnUpdate:'変更を保存する',
     acFound:'過去の楽器記録が見つかりました', acApply:'前回情報を反映',
     acPrevSession:'前回作業', acPrevPitch:'前回ピッチ',
-    acPrevDate:'前回記録日', acPrevEval:'前回調律後評価（調律前評価に反映）',
+    acPrevDate:'前回記録日', acPrevEval:'前回評価（参照のみ）',
     daysAgo:(n) => n === 0 ? '今日' : n === 1 ? '1日前' : n + '日前',
     csvExport:'CSVエクスポート', filterAll:'すべて',
     listHeading:(n)=>`作業記録一覧（${n}件）`,
@@ -748,7 +751,7 @@ const I18N = {
     btnSave:'Save Record', btnUpdate:'Save Changes',
     acFound:'Previous asset found', acApply:'Apply Previous Values',
     acPrevSession:'Previous Session', acPrevPitch:'Previous Pitch',
-    acPrevDate:'Previous session date', acPrevEval:'Prev. After-Evaluation → Before-Evaluation',
+    acPrevDate:'Previous session date', acPrevEval:'Previous Evaluation (reference only)',
     daysAgo:(n) => n === 0 ? 'today' : n === 1 ? '1 day ago' : n + ' days ago',
     csvExport:'Export CSV', filterAll:'All',
     listHeading:(n)=>`Work Records (${n})`,
@@ -1294,6 +1297,7 @@ function buildScenes() {
 
   updateDkVisibility();
   updateHighlights();
+  refreshPreviousReferences();
 }
 
 function buildChecklistPanel(panel, scene) {
@@ -2693,6 +2697,7 @@ function populateFormForEdit(rec) {
   const cmpBtn = document.getElementById('btn-mark-complete');
   cmpBtn.style.display = recStatus(rec) === 'in_progress' ? 'block' : 'none';
   showView('new');
+  refreshPreviousReferences();
   restoreEvalForm();   // called AFTER showView so the inputs are visible when values are set
   window.scrollTo(0, 0);
 }
@@ -2965,13 +2970,84 @@ function buildAllDataLists() {
   fillDatalist('dl-staff',    getHistory('staff'));
 }
 
+
+/* Previous session references are read-only and never enter form data. */
+function referenceValue(pair) {
+  if (!pair) return null;
+  const present = v => v !== undefined && v !== null && String(v).trim() !== '';
+  if (present(pair.after)) return { value: pair.after, phase: 'After' };
+  if (present(pair.before)) return { value: pair.before, phase: 'Before' };
+  return null;
+}
+function previousSession(serial) {
+  const date = document.getElementById('f-date').value;
+  const maker = document.getElementById('f-maker').value.trim();
+  return records.filter(r => serial && r.serial === serial && r.id !== editingId &&
+    r.date && (!date || r.date <= date) && r.type === currentPianoType &&
+    (!maker || !r.maker || r.maker === maker))
+    .sort((a,b) => b.date.localeCompare(a.date) ||
+      String(b.savedAt || '').localeCompare(String(a.savedAt || '')))[0] || null;
+}
+function refreshPreviousReferences() {
+  document.querySelectorAll('.previous-reference').forEach(el => el.remove());
+  const rec = previousSession(document.getElementById('f-serial').value.trim());
+  if (!rec) return;
+  const prefix = (lang === 'en' ? 'Previous ' : '前回 ') + fmtDate(rec.date);
+  const valueText = pair => {
+    const result = referenceValue(pair);
+    return result ? result.value + ' (' + result.phase + ')' : null;
+  };
+  const append = (parent, values, folded = false) => {
+    if (!parent || !values.length) return;
+    const el = document.createElement(folded ? 'details' : 'div');
+    el.className = 'previous-reference';
+    if (folded) {
+      const summary = document.createElement('summary');
+      summary.textContent = prefix;
+      el.appendChild(summary);
+      const body = document.createElement('div');
+      body.textContent = values.join(' · ');
+      el.appendChild(body);
+    } else el.textContent = prefix + ': ' + values.join(' · ');
+    parent.appendChild(el);
+  };
+  getScenes().forEach(scene => {
+    (scene.groups || []).forEach(group => group.items.forEach(item => {
+      const st = rec.checklist?.[scene.id]?.[item.id];
+      if (!st || typeof st !== 'object') return;
+      const values = [];
+      if (item.hasMm) ['bass','mid','treble'].forEach(zone => {
+        const v = valueText(st.mm?.[zone]);
+        if (v !== null) values.push(t('zone' + zone[0].toUpperCase() + zone.slice(1)) + ': ' + v);
+      });
+      if (item.hasMeasure) {
+        const v = valueText(st);
+        if (v !== null) values.push(v);
+      }
+      append(document.getElementById('iw-' + scene.id + '-' + item.id), values, true);
+    }));
+  });
+  EVAL_SLIDERS.forEach(({key}) => {
+    const v = valueText(rec.evaluation?.[key]);
+    append(document.querySelector('[data-sl-key="' + key + '"]'), v === null ? [] : [v]);
+  });
+  const td = rec.touchData || {};
+  ['inspection','final'].forEach(phase => {
+    ['DW','UW'].forEach(key => {
+      const v = valueText({ after: td['final' + key], before: td['inspection' + key] });
+      append(document.getElementById('tw-' + phase + '-' + key.toLowerCase())?.closest('.touch-row'), v === null ? [] : [v + ' g']);
+    });
+  });
+}
+
 function showAssetSuggest(serial) {
+  refreshPreviousReferences();
   const panel = document.getElementById('asset-suggest-panel');
   if (!panel) return;
   if (!serial) { panel.style.display = 'none'; return; }
 
   // 直近の過去記録を検索（編集中の記録自身は除外、新しい順なので find で最新が取れる）
-  const rec = records.find(r => r.serial === serial && r.id !== editingId);
+  const rec = previousSession(serial);
   if (!rec) { panel.style.display = 'none'; return; }
 
   // --- 楽器情報（Apply 対象）---
@@ -3001,8 +3077,8 @@ function showAssetSuggest(serial) {
   const prevEval = rec.evaluation || {};
   const prevAfterVals = {};
   EVAL_KEYS.forEach(k => {
-    const v = prevEval[k]?.after;
-    if (v !== undefined && v !== null) prevAfterVals[k] = v;
+    const v = referenceValue(prevEval[k]);
+    if (v) prevAfterVals[k] = v.value + ' (' + v.phase + ')';
   });
   const hasEvalData = Object.keys(prevAfterVals).length > 0;
 
@@ -3054,20 +3130,7 @@ function showAssetSuggest(serial) {
     // Last Tuned：前回作業日を反映（空欄の場合のみ）
     fill('f-last-tuned', rec.date);
 
-    // 前回 after-evaluation → 今回 before-evaluation（デフォルト値 3 のスライダーのみ上書き）
-    EVAL_KEYS.forEach(k => {
-      const prevVal = prevAfterVals[k];
-      if (prevVal === undefined) return;
-      const slEl = document.getElementById('sl-' + k + '-before');
-      const svEl = document.getElementById('sv-' + k + '-before');
-      if (!slEl) return;
-      if (parseInt(slEl.value, 10) === 3) {  // デフォルト値のみ上書き
-        slEl.value = prevVal;
-        if (svEl) svEl.textContent = prevVal;
-        if (!evaluation[k]) evaluation[k] = { before: 3, after: 3, memo: '' };
-        evaluation[k].before = prevVal;
-      }
-    });
+    refreshPreviousReferences();
 
     panel.style.display = 'none';
     markDirty();
@@ -3110,7 +3173,9 @@ document.getElementById('f-work-type').addEventListener('change', e => {
 document.getElementById('f-disklavier').addEventListener('change', e => {
   isDK = e.target.checked; updateDkVisibility();
 });
-document.getElementById('f-serial').addEventListener('change', e => showAssetSuggest(e.target.value.trim()));
+document.getElementById('f-serial').addEventListener('input', e => showAssetSuggest(e.target.value.trim()));
+['f-date', 'f-maker'].forEach(id => document.getElementById(id).addEventListener('change', () =>
+  showAssetSuggest(document.getElementById('f-serial').value.trim())));
 
 // artist tag input
 (function() {
