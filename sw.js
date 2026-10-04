@@ -1,4 +1,4 @@
-const CACHE = 'resolog-v38';
+const CACHE = 'resolog-v39';
 const FILES = ['./index.html', './icon.png', './icon.svg', './manifest.json'];
 
 self.addEventListener('install', e => {
