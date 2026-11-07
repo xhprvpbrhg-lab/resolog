@@ -1,5 +1,5 @@
-const CACHE = 'resolog-v39';
-const FILES = ['./index.html', './icon.png', './icon.svg', './manifest.json'];
+const CACHE = 'resolog-v40';
+const FILES = ['./index.html', './workflow.js', './workflow.css', './icon.png', './icon.svg', './manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
