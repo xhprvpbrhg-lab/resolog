@@ -6,7 +6,7 @@ const wfOriginalSwitchScene = switchScene;
 switchScene = function(id) { wfWorkScene=id; wfOriginalSwitchScene(id); };
 function emptyWorkflow() { return { version: 1, findings: {}, tasks: [] }; }
 const wfText = (ja, en) => lang === 'en' ? en : ja;
-const wfStates = () => ({uninspected:wfText('未点検','Not inspected'), unnecessary:wfText('点検済み・作業不要','Inspected · no work needed'), planned:wfText('作業予定','Planned'), done:wfText('実施済み','Completed'), deferred:wfText('見送り','Deferred')});
+const wfStates = () => ({uninspected:wfText('未点検','Not inspected'), unnecessary:wfText('点検済み・作業不要','Inspected · no work needed'), planned:wfText('作業予定','Planned'), done:wfText('実施済み','Completed'), deferred:wfText('見送り','Deferred'), inspected:wfText('点検済み','Inspected'), needed:wfText('点検済み・作業予定','Inspected · work planned')});
 function wfCatalog() {
   const result = [
     {id:'tuning',label:wfText('調律','Tuning')},
@@ -44,9 +44,33 @@ function wfInput(value,attrs='') { return `<input value="${esc(String(value??'')
 function wfField(label,control) { return `<label class="wf-field"><span>${esc(label)}</span>${control}</label>`; }
 function wfChanged() { markDirty(); }
 function wfSyncLegacy() { restoreChecklistUI(); restoreTuningUI(); restoreEvalForm(); }
+function wfInspectionState(id) {
+  const f=wfFinding(id),present=value=>value!=null&&String(value).trim()!=='';
+  const linked=workflow.tasks.filter(task=>task.sources.includes(id));
+  if(linked.some(task=>task.status==='planned'))return 'needed';
+  if(linked.some(task=>task.status==='done'))return 'done';
+  if(f.state==='unnecessary')return 'unnecessary';
+  let entered=linked.length>0||present(f.note)||present(f.result)||f.sliderTouched||f.manualConfirmed;
+  if(id==='pitch')entered ||= present(tuningData.pitchBefore)||present(tuningData.preCondition);
+  if(id==='eval.touch')entered ||= present(touchData.inspectionDW)||present(touchData.inspectionUW);
+  if(id.startsWith('action.')){
+    const st=checklist.action?.[id.slice(7)];
+    entered ||= present(st?.memo)||present(st?.before)||Object.values(st?.mm||{}).some(zone=>present(zone.before));
+  }
+  return entered?'inspected':'uninspected';
+}
+function wfRefreshInspectionStates() {
+  wfSources().forEach(source=>{wfFinding(source.id).state=wfInspectionState(source.id);});
+  document.querySelectorAll('[data-inspection-status]').forEach(el=>{
+    const id=el.dataset.inspectionStatus,state=wfInspectionState(id);
+    el.textContent=wfStates()[state];
+    const manual=document.querySelector(`[data-confirm-inspection="${id}"]`);
+    if(manual){manual.checked=!!wfFinding(id).manualConfirmed;manual.closest('label').hidden=state!=='uninspected'&&!wfFinding(id).manualConfirmed;}
+  });
+}
 function wfDecision(id) {
-  const f=wfFinding(id);
-  return wfSelect({uninspected:wfStates().uninspected,unnecessary:wfStates().unnecessary,needed:wfText('点検済み・作業を検討','Inspected · consider work')},f.state,`data-decision="${esc(id)}" aria-label="${esc(wfLabel(id))} ${wfText('判断','decision')}"`);
+  const f=wfFinding(id),state=wfInspectionState(id);
+  return `<div class="wf-inspection-state"><span data-inspection-status="${id}" role="status">${wfStates()[state]}</span><label ${state!=='uninspected'&&!f.manualConfirmed?'hidden':''}><input type="checkbox" data-confirm-inspection="${id}" ${f.manualConfirmed?'checked':''}>${wfText('確認済み','Checked')}</label><details><summary>${wfText('判断を指定','Set decision')}</summary><label><input type="checkbox" data-no-work="${id}" ${f.state==='unnecessary'?'checked':''}>${wfText('今回は作業不要','No work needed this time')}</label></details></div>`;
 }
 // Suggestions are shortcuts, not automatic diagnoses; every catalog item remains available.
 function wfRelevantKinds(id) {
@@ -145,8 +169,49 @@ function wfTargetEditor(task) {
   return html;
 }
 function wfRenderTasks() {
-  // The existing checklist DOM is mounted here by renderWorkflow, preserving its handlers.
-  return `<div id="wf-checklist-mount"></div><div class="wf-plan"><select id="wf-new-kind" aria-label="${wfText('作業の種類','Work type')}">${wfCatalog().map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join('')}</select><button type="button" data-plan="">${wfText('別の処置を追加','Add another treatment')}</button></div>`;
+  return `<div class="wf-work-options"><label><input type="checkbox" data-work-tightening ${workflow.showTightening?'checked':''}>${wfText('ネジ増し締め','Tightening screws')}</label><label><input type="checkbox" data-work-dk ${isDK?'checked':''}>Disklavier</label></div><div id="wf-checklist-mount"></div>
+    ${!workflow.tasks.length&&!workflow.showTightening&&!isDK?`<p class="wf-muted">${wfText('作業予定はありません。点検で作業を選択するか、ここで追加できます。','No planned work. Select work during inspection or add it here.')}</p>`:''}
+    <div class="wf-plan"><select id="wf-new-kind" aria-label="${wfText('作業の種類','Work type')}">${wfCatalog().map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join('')}</select><button type="button" data-plan="">${wfText('作業を追加','Add task')}</button></div>`;
+}
+function wfRestoreChecklistLayout() {
+  const card=document.querySelector('#view-new .scenes-card');
+  if(!card)return;
+  card.classList.remove('wf-flat');
+  card.querySelectorAll('[data-wf-filtered]').forEach(el=>{el.hidden=false;delete el.dataset.wfFiltered;});
+  card.querySelectorAll('.wf-scene-heading').forEach(el=>el.remove());
+}
+function wfFilterChecklist(card) {
+  const scheduled=new Set(workflow.tasks.map(task=>task.kind));
+  const hide=(el,value)=>{el.hidden=value;el.dataset.wfFiltered='true';};
+  card.classList.add('wf-flat');
+  getScenes().forEach(scene=>{
+    const panel=document.getElementById('panel-'+scene.id);if(!panel)return;
+    if(scene.id==='tuning'){hide(panel,!scheduled.has('tuning'));return;}
+    if(scene.id==='voicing'){
+      hide(panel,!workflow.tasks.some(task=>!task.kind.startsWith('action.')&&task.kind!=='tuning'));
+      const legacy=panel.querySelector('.wf-legacy-voicing');if(legacy)hide(legacy,true);
+      return;
+    }
+    let hasVisibleGroup=false;
+    scene.groups.forEach((group,index)=>{
+      const section=panel.querySelector(`.group-section[data-gi="${index}"]`);if(!section)return;
+      const extra=group.isDkSection?isDK:group.enLabel==='Tightening Screws'&&!!workflow.showTightening;
+      let visible=false;
+      group.items.forEach(item=>{
+        const wrapper=document.getElementById('iw-'+scene.id+'-'+item.id);if(!wrapper)return;
+        const show=!!extra||scheduled.has(scene.id+'.'+item.id);
+        hide(wrapper,!show);visible ||= show;
+      });
+      hide(section,!visible);hasVisibleGroup ||= visible;
+    });
+    // Weight forms belong to inspection/review; Work displays scheduled checklist rows only.
+    panel.querySelectorAll('.touch-section').forEach(el=>hide(el,true));
+    hide(panel,!hasVisibleGroup);
+  });
+  getScenes().forEach(scene=>{
+    const panel=document.getElementById('panel-'+scene.id);if(!panel||panel.hidden)return;
+    const heading=document.createElement('h3');heading.className='wf-scene-heading';heading.textContent=sName(scene);panel.prepend(heading);
+  });
 }
 function wfTaskEditor(task,index) {
   const hasChecklistMemo=task.kind.startsWith('action.')&&document.querySelector('#iw-action-'+task.kind.slice(7)+' .item-memo');
@@ -175,16 +240,12 @@ function wfMountChecklist() {
   legacy.hidden=!Object.values(checklist.voicing||{}).some(st=>st.checked||st.memo);
   const operations=document.createElement('div');operations.className='wf-injected';
   const standalone=workflow.tasks.filter(task=>!task.kind.startsWith('action.')&&task.kind!=='tuning');
-  const kinds=['needling','hardener','filing'];
-  operations.innerHTML=kinds.map(kind=>{
-    const tasks=standalone.filter(task=>task.kind===kind);
-    return tasks.length?tasks.map(task=>wfTaskRow(task,workflow.tasks.indexOf(task))).join(''):`<div class="item-wrapper"><label class="checklist-item"><input type="checkbox" data-start-kind="${kind}"><span class="item-label">${esc(wfCatalog().find(c=>c.id===kind).label)}</span></label></div>`;
-  }).join('')+standalone.filter(task=>!kinds.includes(task.kind)).map(task=>wfTaskRow(task,workflow.tasks.indexOf(task))).join('');
+  operations.innerHTML=standalone.map(task=>wfTaskRow(task,workflow.tasks.indexOf(task))).join('');
   voicing.prepend(operations);
   const tuning=document.getElementById('panel-tuning');
   const tuningRows=document.createElement('div');tuningRows.className='wf-injected';
   const tuningTasks=workflow.tasks.filter(task=>task.kind==='tuning');
-  tuningRows.innerHTML=tuningTasks.length?tuningTasks.map(task=>wfTaskRow(task,workflow.tasks.indexOf(task))).join(''):`<label class="checklist-item"><input type="checkbox" data-start-kind="tuning"><span class="item-label">${wfText('調律を実施','Tuning performed')}</span></label>`;
+  tuningRows.innerHTML=tuningTasks.length?tuningTasks.map(task=>wfTaskRow(task,workflow.tasks.indexOf(task))).join(''):'';
   tuning.prepend(tuningRows);
   workflow.tasks.filter(task=>task.kind.startsWith('action.')).forEach(task=>{
     const wrapper=document.getElementById('iw-action-'+task.kind.slice(7));if(!wrapper)return;
@@ -196,17 +257,16 @@ function wfMountChecklist() {
     if(memo&&task.memo&&!memo.value){memo.value=task.memo;checklist.action[task.kind.slice(7)].memo=task.memo;}
     const extra=document.createElement('div');extra.className='wf-injected';extra.dataset.task=task.id;extra.innerHTML=`<small class="wf-task-state">${wfStates()[task.status]}</small>${wfTaskEditor(task,workflow.tasks.indexOf(task))}`;wrapper.appendChild(extra);
   });
-  let dkTab=card.querySelector('[data-wf-dk]');
-  if(!dkTab){dkTab=document.createElement('button');dkTab.type='button';dkTab.dataset.wfDk='true';dkTab.textContent='Disklavier';card.querySelector('.scene-tab-bar').appendChild(dkTab);}
-  dkTab.hidden=!isDK;
-  switchScene(wfWorkScene);
   updateDkVisibility();
+  wfFilterChecklist(card);
 }
 function wfMeasureText(st,item) {
   if(!st)return '';
   return item.hasMm?['bass','mid','treble'].map(z=>`${({bass:t('zoneBass'),mid:t('zoneMid'),treble:t('zoneTreble')})[z]} ${st.mm?.[z]?.before||'—'} → ${st.mm?.[z]?.after||'—'} mm`).join(' / '):`${st.before||'—'} → ${st.after||'—'} mm`;
 }
 function renderWorkflow() {
+  wfRestoreChecklistLayout();
+  wfRefreshInspectionStates();
   let root=document.getElementById('workflow-card');
   if(!root){root=document.createElement('div');root.id='workflow-card';root.className='card';document.querySelector('#view-new .scenes-card').before(root);}
   const opened=[...root.querySelectorAll('[data-task] details[open]')].map(el=>el.closest('[data-task]').dataset.task);
@@ -224,11 +284,11 @@ function renderWorkflow() {
 const wfRootInit=initChecklist;
 initChecklist=function(){wfRootInit();tuningData.pitchBefore='';tuningData.pitchAfter='';workflow=emptyWorkflow();workflowPhase='inspection';wfWorkScene='action';};
 const wfBuildScenes=buildScenes;
-buildScenes=function(){const dk=document.querySelector('#wf-dk-mount .dk-section');if(dk)document.getElementById('panel-final')?.appendChild(dk);wfBuildScenes();renderWorkflow();};
+buildScenes=function(){wfRestoreChecklistLayout();const dk=document.querySelector('#wf-dk-mount .dk-section');if(dk)document.getElementById('panel-final')?.appendChild(dk);wfBuildScenes();renderWorkflow();};
 const wfPopulate=populateFormForEdit;
 populateFormForEdit=function(rec){workflow=JSON.parse(JSON.stringify(rec.workflow||{...emptyWorkflow(),legacy:true}));workflowPhase='inspection';wfPopulate(rec);renderWorkflow();};
 const wfCollect=collectFormData;
-collectFormData=function(){return {...wfCollect(),workflow:JSON.parse(JSON.stringify(workflow))};};
+collectFormData=function(){wfRefreshInspectionStates();return {...wfCollect(),workflow:JSON.parse(JSON.stringify(workflow))};};
 // Keep the original controls and their listeners for compatibility; mirrors share their data.
 document.querySelector('#em-touch').closest('.card').classList.add('wf-original-evaluation');
 document.addEventListener('input',e=>{
@@ -238,19 +298,24 @@ document.addEventListener('input',e=>{
   if(d.feedback)evaluation[d.feedback]=el.value;
   if(d.pitch)tuningData[d.pitch]=el.value;
   if(d.tuning)tuningData[d.tuning]=el.value;
+  if(d.eval&&d.phase==='before')wfFinding('eval.'+d.eval).sliderTouched=true;
   if(d.eval){evaluation[d.eval] ||= {before:3,after:3,memo:''};evaluation[d.eval][d.phase]=+el.value;el.previousElementSibling.textContent=el.value;}
   if(d.finding){const f=wfFinding(d.finding);f[d.field]=el.value;if(d.field==='result'&&d.finding.startsWith('eval.'))evaluation[d.finding.slice(5)].memo=el.value;}
   if(d.measure){const st=checklist.action[d.measure];if(d.zone==='single')st[d.phase]=el.value;else st.mm[d.zone][d.phase]=el.value;}
   if(d.taskMemo){const task=workflow.tasks.find(t=>t.id===d.taskMemo);task.memo=el.value;if(task.kind.startsWith('action.'))checklist.action[task.kind.slice(7)].memo=el.value;}
-  wfSyncLegacy();wfChanged();
+  wfRefreshInspectionStates();wfSyncLegacy();wfChanged();
 });
 document.addEventListener('change',e=>{
   const el=e.target,d=el.dataset;
   if(el.id==='wf-legacy-toggle'){document.body.classList.toggle('wf-show-legacy',el.checked);return;}
   if(!el.closest('#workflow-card'))return;
+  if('workTightening'in d){workflow.showTightening=el.checked;wfChanged();renderWorkflow();return;}
+  if('workDk'in d){const original=document.getElementById('f-disklavier');original.checked=el.checked;original.dispatchEvent(new Event('change',{bubbles:true}));wfChanged();return;}
   if(d.otherSource!==undefined&&el.value){wfAddTask(el.value,d.otherSource);wfChanged();renderWorkflow();return;}
   if(d.taskComplete){const task=workflow.tasks.find(t=>t.id===d.taskComplete);task.status=el.checked?'done':'planned';if(task.kind.startsWith('action.'))checklist.action[task.kind.slice(7)].checked=el.checked;}
   if(d.startKind){wfAddTask(d.startKind).status='done';wfChanged();renderWorkflow();return;}
+  if(d.confirmInspection)wfFinding(d.confirmInspection).manualConfirmed=el.checked;
+  if(d.noWork)wfFinding(d.noWork).state=el.checked?'unnecessary':'uninspected';
   if(d.overall)evaluation.overall=el.value;
   if(d.decision)wfFinding(d.decision).state=el.value;
   if(d.taskStatus){const task=workflow.tasks.find(t=>t.id===d.taskStatus);task.status=el.value;if(task.kind.startsWith('action.')){const st=checklist.action?.[task.kind.slice(7)];if(st)st.checked=el.value==='done';restoreChecklistUI();const cb=document.querySelector('#iw-action-'+task.kind.slice(7)+' input[type=checkbox]');if(cb){cb.checked=st?.checked||false;cb.closest('.checklist-item').classList.toggle('checked',cb.checked);}}}
@@ -258,7 +323,7 @@ document.addEventListener('change',e=>{
   if(d.zoneTask){const target=workflow.tasks.find(t=>t.id===d.zoneTask).target;target.zones=el.checked?[...new Set([...target.zones,el.value])]:target.zones.filter(z=>z!==el.value);}
   if(d.taskLink){const task=workflow.tasks.find(t=>t.id===d.taskLink);task.sources=el.checked?[...new Set([...task.sources,d.source])]:task.sources.filter(id=>id!==d.source);}
   if(d.decision==='pitch'&&el.value==='unnecessary'&&workflow.tasks.some(t=>t.kind==='tuning'&&t.status==='planned'))toast(wfText('予定済みの調律は作業画面で見送りに変更できます','You can defer the planned tuning in Work'));
-  wfChanged();if(d.targetMode||d.taskStatus||d.taskComplete)renderWorkflow();
+  wfRefreshInspectionStates();wfChanged();if(d.targetMode||d.taskStatus||d.taskComplete)renderWorkflow();
 });
 document.addEventListener('click',e=>{
   const el=e.target.closest('button');if(!el)return;const d=el.dataset;
@@ -275,12 +340,14 @@ document.addEventListener('click',e=>{
   else return;
   wfChanged();renderWorkflow();
 });
+document.querySelector('.wf-original-evaluation').addEventListener('input',event=>{const match=event.target.id.match(/^sl-(.+)-before$/);if(match)wfFinding('eval.'+match[1]).sliderTouched=true;wfRefreshInspectionStates();});
 // Legacy controls keep their own listeners. Only synchronize linked task metadata here.
 document.getElementById('scene-panels').addEventListener('input',event=>{
   const wrapper=event.target.closest('.item-wrapper');
   if(wrapper?.id.startsWith('iw-action-')&&event.target.matches('.item-memo')){
     workflow.tasks.filter(task=>task.kind==='action.'+wrapper.id.slice(10)).forEach(task=>task.memo=event.target.value);
   }
+  wfRefreshInspectionStates();
   if(workflowPhase!=='work')renderWorkflow();
 });
 document.getElementById('scene-panels').addEventListener('change',event=>{
@@ -290,7 +357,7 @@ document.getElementById('scene-panels').addEventListener('change',event=>{
   workflow.tasks.filter(task=>task.kind===kind).forEach(task=>task.status=event.target.checked?'done':'planned');
   wrapper.querySelectorAll('.wf-task-state').forEach(el=>el.textContent=event.target.checked?wfStates().done:wfStates().planned);
   wrapper.querySelectorAll('[data-task-status]').forEach(el=>el.value=event.target.checked?'done':'planned');
-  markDirty();
+  wfRefreshInspectionStates();markDirty();
 });
 document.getElementById('f-disklavier').addEventListener('change',()=>{renderWorkflow();});
 
@@ -316,7 +383,7 @@ function wfRecordText(rec){
   if(td.preCondition)lines.push(wfText('調律前の状態','Initial tuning condition')+': '+td.preCondition);
   if(td.postComment)lines.push(wfText('調律後の状態','Final tuning condition')+': '+td.postComment);
   if(td.stringPinMemo)lines.push(wfText('弦・ピン','Strings / pins')+': '+td.stringPinMemo);
-  Object.entries(w.findings).forEach(([id,f])=>{if(f.state!=='uninspected'||f.note||f.result)lines.push(`${wfLabel(id)}: ${f.state==='needed'?wfText('点検済み・作業を検討','Inspected · consider work'):wfStates()[f.state]||f.state}${f.note?' / '+f.note:''}${f.result?' → '+f.result:''}`);});
+  Object.entries(w.findings).forEach(([id,f])=>{if(f.state!=='uninspected'||f.note||f.result)lines.push(`${wfLabel(id)}: ${wfStates()[f.state]||f.state}${f.note?' / '+f.note:''}${f.result?' → '+f.result:''}`);});
   w.tasks.forEach(task=>lines.push(`${wfStates()[task.status]}: ${wfTaskText(task)}${task.sources.length?' ['+task.sources.map(wfLabel).join(', ')+']':''}`));
   return lines.join('\n');
 }
