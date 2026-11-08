@@ -139,6 +139,7 @@ function wfRenderInspectionOrReview(review) {
   });
   html+='</section>';
   html+=`<section class="wf-section"><h3>${wfText('ウェイト測定 (g)','Touch weight (g)')}</h3><div class="wf-measures">${['DW','UW'].map(k=>wfField(k,(review?`<small>${wfText('前','Before')}: ${esc(touchData['inspection'+k]||'—')}</small>`:'')+wfInput(touchData[(review?'final':'inspection')+k],`type="number" step="any" inputmode="decimal" data-touch="${(review?'final':'inspection')+k}"`))).join('')}</div><p id="wf-weight-result">${wfWeightText(review?'final':'inspection')}</p></section>`;
+  if(!review) {
   html+=`<section class="wf-section"><h3>${wfText('整調寸法 (mm)','Regulation measurements (mm)')}</h3><div class="wf-muted">${wfText('入力しても実施済みにはなりません。','Entering measurements does not mark work completed.')}</div>`;
   wfMeasures().forEach(item=>{
     html+=`<div class="wf-observation"><strong>${esc(iLabel(item))}</strong><div class="wf-measures">${wfMeasurement(item,phase)}</div>`;
@@ -146,6 +147,7 @@ function wfRenderInspectionOrReview(review) {
     html+='</div>';
   });
   html+='</section>';
+  }
   const f=wfFinding('pedal');
   html+=`<section class="wf-section"><h3>${wfText('ペダル','Pedals')}</h3>${review&&f.note?`<p>${esc(f.note)}</p>`:''}${wfField(review?wfText('確認結果','Result'):wfText('点検時の状態','Initial condition'),wfInput(review?f.result:f.note,`data-finding="pedal" data-field="${review?'result':'note'}"`))}${review?wfLinksEditor('pedal'):wfDecision('pedal')+wfPlanControls('pedal')}</section>`;
   if(review) html+=`<section class="wf-section"><h3>${wfText('フィードバック','Feedback')}</h3>${['positive','negative'].map(k=>wfField(k==='positive'?wfText('肯定的コメント','Positive comments'):wfText('要望・改善点','Requests / improvements'),wfInput(evaluation[k],`data-feedback="${k}"`))).join('')}${wfSelect({'':wfText('未評価','Not rated'),none:wfText('コメントなし','No comment'),satisfied:wfText('満足','Satisfied'),'needs-improvement':wfText('要改善','Needs improvement')},evaluation.overall,'data-overall="true" aria-label="Overall rating"')}</section>`;

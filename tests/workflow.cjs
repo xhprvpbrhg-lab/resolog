@@ -138,6 +138,17 @@ assert.equal(d.querySelector('#panel-final .dk-section').hidden,false);
 run('performSave(false);populateFormForEdit(records[0])');
 assert.equal(run("wfInspectionState('eval.volume')"),'inspected');
 assert.equal(run("wfInspectionState('pedal')"),'inspected');
+// Regulation measurements finish in Work, without a second form in Review.
+click('[data-wf-phase="work"]');
+input('#iw-action-hammerClose [data-zone="mid"][data-phase="after"]','1.2');
+assert.equal(run('checklist.action.hammerClose.mm.mid.after'),'1.2');
+click('[data-wf-phase="review"]');
+assert.equal(d.querySelectorAll('#wf-body [data-measure]').length,0);
+assert.equal(d.querySelector('#wf-body').textContent.includes('整調寸法'),false);
+assert.ok(d.querySelector('#wf-body [data-finding="eval.touch"]'));
+run('performSave(false);populateFormForEdit(records[0])');
+click('[data-wf-phase="work"]');
+assert.equal(d.querySelector('#iw-action-hammerClose [data-zone="mid"][data-phase="after"]').value,'1.2');
 assert.deepEqual(errors,[]);
 console.log('PASS: inspection decisions, shared measurements, task links, key ranges, completion filtering, save/edit, Markdown, legacy and upright');
 dom.window.close();
