@@ -165,6 +165,16 @@ assert.equal(run("wfInspectionState('unaCorda')"),'deferred');
 // Previously explicit no-work decisions still count as confirmed when loaded.
 run("workflow.findings.unaCorda={state:'unnecessary',note:'',result:''};workflow.tasks=workflow.tasks.filter(t=>!t.sources.includes('unaCorda'));wfRefreshInspectionStates()");
 assert.equal(run("wfInspectionState('unaCorda')"),'unnecessary');
+// Tightening stays available through its group selector, never in work dropdowns.
+run('renderWorkflow()');
+assert.equal(d.querySelector('[data-other-source="pitch"] option[value="action.shankFlange"]'),null);
+assert.ok(d.querySelector('[data-other-source="pitch"] option[value="action.hammerClose"]'));
+assert.ok(d.querySelector('[data-other-source="pitch"]').closest('.wf-work-pickers'));
+click('[data-wf-phase="work"]');
+assert.equal(d.querySelector('#wf-new-kind option[value="action.shankFlange"]'),null);
+assert.ok(d.querySelector('[data-work-tightening]'));
+run("currentPianoType='upright';initChecklist();buildScenes()");
+assert.equal(run("wfSelectableCatalog().some(c=>getScenes().find(s=>s.id==='action').groups.filter(g=>g.enLabel==='Tightening Screws').some(g=>g.items.some(i=>'action.'+i.id===c.id)))"),false);
 assert.deepEqual(errors,[]);
 console.log('PASS: inspection decisions, shared measurements, task links, key ranges, completion filtering, save/edit, Markdown, legacy and upright');
 dom.window.close();

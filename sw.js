@@ -1,4 +1,4 @@
-const CACHE = 'resolog-v44';
+const CACHE = 'resolog-v45';
 const FILES = ['./index.html', './workflow.js', './workflow.css', './icon.png', './icon.svg', './manifest.json'];
 
 self.addEventListener('install', e => {

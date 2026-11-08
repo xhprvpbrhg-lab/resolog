@@ -20,6 +20,12 @@ function wfCatalog() {
   action?.groups.forEach(g=>g.items.forEach(i=>result.push({id:'action.'+i.id,label:iLabel(i)})));
   return result;
 }
+function wfSelectableCatalog() {
+  const tightening=new Set(getScenes().flatMap(scene=>(scene.groups||[])
+    .filter(group=>group.enLabel==='Tightening Screws')
+    .flatMap(group=>group.items.map(item=>scene.id+'.'+item.id))));
+  return wfCatalog().filter(item=>!tightening.has(item.id));
+}
 function wfSources() {
   return [{id:'pitch',label:wfText('ピッチ・調律状態','Pitch / tuning condition')},
     ...getEvalSliders().map(i=>({id:'eval.'+i.key,label:i.label,key:i.key})),
@@ -98,14 +104,14 @@ function wfAddTask(kind,source='') {
   return task;
 }
 function wfPlanControls(id) {
-  const relevant=wfRelevantKinds(id),catalog=wfCatalog();
+  const relevant=wfRelevantKinds(id),catalog=wfSelectableCatalog();
   const tags=relevant.map(kind=>{
     const selected=workflow.tasks.some(t=>t.kind===kind&&t.sources.includes(id));
     return `<button type="button" class="wf-tag" data-quick-kind="${kind}" data-quick-source="${id}" aria-pressed="${selected}">${esc(catalog.find(c=>c.id===kind).label)}</button>`;
   }).join('');
   const other=catalog.filter(c=>!relevant.includes(c.id));
   const linked=workflow.tasks.filter(t=>t.sources.includes(id));
-  return `<div class="wf-quick-tags">${tags}</div>${wfSelect(Object.fromEntries([['',wfText('その他の作業…','Other work…')],...other.map(c=>[c.id,c.label])]),'',`data-other-source="${id}" aria-label="${esc(wfLabel(id))} ${wfText('その他の作業','Other work')}"`)}
+  return `<div class="wf-work-pickers"><div class="wf-quick-tags">${tags}</div>${wfSelect(Object.fromEntries([['',wfText('その他','Other')],...other.map(c=>[c.id,c.label])]),'',`class="wf-other-select" data-other-source="${id}" aria-label="${esc(wfLabel(id))} ${wfText('その他の作業','Other work')}"`)}</div>
     ${linked.length?`<div class="wf-muted">${linked.map(task=>esc(wfTaskLabel(task))+' · '+wfStates()[task.status]).join(' / ')}</div>`:''}
     ${workflow.tasks.some(t=>!t.sources.includes(id))?`<details class="wf-existing"><summary>${wfText('記録済みの作業に関連づけ','Link a recorded task')}</summary>${workflow.tasks.filter(t=>!t.sources.includes(id)).map(task=>`<button type="button" data-direct-link="${task.id}" data-source="${id}">${esc(wfTaskText(task))}</button>`).join('')}</details>`:''}`;
 }
@@ -173,7 +179,7 @@ function wfTargetEditor(task) {
 function wfRenderTasks() {
   return `<div class="wf-work-options"><label><input type="checkbox" data-work-tightening ${workflow.showTightening?'checked':''}>${wfText('ネジ増し締め','Tightening screws')}</label><label><input type="checkbox" data-work-dk ${isDK?'checked':''}>Disklavier</label></div><div id="wf-checklist-mount"></div>
     ${!workflow.tasks.length&&!workflow.showTightening&&!isDK?`<p class="wf-muted">${wfText('作業予定はありません。点検で作業を選択するか、ここで追加できます。','No planned work. Select work during inspection or add it here.')}</p>`:''}
-    <div class="wf-plan"><select id="wf-new-kind" aria-label="${wfText('作業の種類','Work type')}">${wfCatalog().map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join('')}</select><button type="button" data-plan="">${wfText('作業を追加','Add task')}</button></div>`;
+    <div class="wf-plan"><select id="wf-new-kind" aria-label="${wfText('作業の種類','Work type')}">${wfSelectableCatalog().map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join('')}</select><button type="button" data-plan="">${wfText('作業を追加','Add task')}</button></div>`;
 }
 function wfRestoreChecklistLayout() {
   const card=document.querySelector('#view-new .scenes-card');
