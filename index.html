@@ -389,6 +389,7 @@
     details.previous-reference { margin-left: 28px; }
     .previous-reference summary { cursor: pointer; }
   </style>
+<link rel="stylesheet" href="workflow.css">
 </head>
 <body>
 <header>
@@ -2623,8 +2624,8 @@ function restoreChecklistUI() {
 function restoreTuningUI() {
   const td = tuningData;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-  set('tf-pitch-before', td.pitchBefore || '440');
-  set('tf-pitch-after',  td.pitchAfter  || '440');
+  set('tf-pitch-before', td.pitchBefore || '');
+  set('tf-pitch-after',  td.pitchAfter  || '');
   set('tf-pre',  td.preCondition  || '');
   set('tf-post', td.postComment   || '');
   set('tf-pin',  td.stringPinMemo || '');
@@ -2818,7 +2819,7 @@ function exportMD(rec) {
   md += t('mdWork') + '\n';
 
   // --- Summary Builder items (or fallback auto-generation) ---
-  if (summaryItems.length) {
+  if (summaryItems.length || rec.workflow) {
     summaryItems.filter(it => it.included).forEach(it => { md += '- ' + it.text + '\n'; });
   } else {
     // ピッチ
@@ -2873,6 +2874,8 @@ function exportMD(rec) {
     if (ev.positive || ev.negative)
       md += '\n> ' + [ev.positive, ev.negative].filter(Boolean).join('　') + (ov || '') + '\n';
   }
+
+  if (rec.workflow) md += '\n## ' + wfText('点検と作業の記録', 'Inspection and work') + '\n' + wfRecordText(rec) + '\n';
 
   // --- 個人メモ・気づき ---
   if (rec.memo) md += '\n' + t('mdMemo') + '\n' + rec.memo + '\n';
@@ -3228,5 +3231,6 @@ buildAllDataLists();
     navigator.serviceWorker.register('./sw.js');
   }
 </script>
+<script src="workflow.js"></script>
 </body>
 </html>
