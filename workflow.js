@@ -272,6 +272,12 @@ function wfMeasureText(st,item) {
   if(!st)return '';
   return item.hasMm?['bass','mid','treble'].map(z=>`${({bass:t('zoneBass'),mid:t('zoneMid'),treble:t('zoneTreble')})[z]} ${st.mm?.[z]?.before||'—'} → ${st.mm?.[z]?.after||'—'} mm`).join(' / '):`${st.before||'—'} → ${st.after||'—'} mm`;
 }
+function wfBottomNavigation() {
+  const steps=['inspection','work','review'],index=steps.indexOf(workflowPhase);
+  const previous=index>0?`<button type="button" data-wf-phase="${steps[index-1]}" data-wf-footer>${index===1?wfText('点検へ戻る','Back to inspection'):wfText('作業へ戻る','Back to work')}</button>`:'';
+  const next=index<2?`<button type="button" class="wf-next-step" data-wf-phase="${steps[index+1]}" data-wf-footer>${index===0?wfText('作業へ進む','Continue to work'):wfText('最終確認へ進む','Continue to final review')}</button>`:'';
+  return `<nav class="wf-bottom-navigation" aria-label="${wfText('次の画面へ','Step navigation')}">${previous}${next}</nav>`;
+}
 function renderWorkflow() {
   wfRestoreChecklistLayout();
   wfRefreshInspectionStates();
@@ -282,7 +288,7 @@ function renderWorkflow() {
   if(dkSection)document.getElementById('panel-final')?.appendChild(dkSection);
   const checklistCard=document.querySelector('#view-new .scenes-card');
   if(root.contains(checklistCard))root.after(checklistCard);
-  root.innerHTML=`<div class="card-title">${wfText('点検・作業・最終確認','Inspection · work · review')}</div><nav class="wf-tabs">${[['inspection',wfText('1 点検','1 Inspect')],['work',wfText('2 作業','2 Work')],['review',wfText('3 最終確認','3 Review')]].map(([id,label])=>`<button type="button" data-wf-phase="${id}" aria-pressed="${id===workflowPhase}">${label}</button>`).join('')}</nav><div id="wf-body">${workflowPhase==='work'?wfRenderTasks():wfRenderInspectionOrReview(workflowPhase==='review')}</div><label class="wf-link-row"><input type="checkbox" id="wf-legacy-toggle" ${document.body.classList.contains('wf-show-legacy')?'checked':''}>${wfText('詳細チェックリスト・既存記録を表示','Show detailed checklist / legacy records')}</label>`;
+  root.innerHTML=`<div class="card-title">${wfText('点検・作業・最終確認','Inspection · work · review')}</div><nav class="wf-tabs">${[['inspection',wfText('1 点検','1 Inspect')],['work',wfText('2 作業','2 Work')],['review',wfText('3 最終確認','3 Review')]].map(([id,label])=>`<button type="button" data-wf-phase="${id}" aria-pressed="${id===workflowPhase}">${label}</button>`).join('')}</nav><div id="wf-body">${workflowPhase==='work'?wfRenderTasks():wfRenderInspectionOrReview(workflowPhase==='review')}</div><label class="wf-link-row"><input type="checkbox" id="wf-legacy-toggle" ${document.body.classList.contains('wf-show-legacy')?'checked':''}>${wfText('詳細チェックリスト・既存記録を表示','Show detailed checklist / legacy records')}</label>${wfBottomNavigation()}`;
   document.getElementById('wf-legacy-toggle').closest('label').hidden=workflowPhase==='work';
   if(workflowPhase==='work')wfMountChecklist();
   opened.forEach(id=>root.querySelector(`[data-task="${id}"] details`)?.setAttribute('open',''));
@@ -335,7 +341,7 @@ document.addEventListener('change',e=>{
 document.addEventListener('click',e=>{
   const el=e.target.closest('button');if(!el)return;const d=el.dataset;
   if(d.wfDk){switchScene('final');document.querySelector('#panel-final .dk-section')?.scrollIntoView?.({block:'nearest'});return;}
-  if(d.wfPhase){workflowPhase=d.wfPhase;renderWorkflow();return;}
+  if(d.wfPhase){workflowPhase=d.wfPhase;renderWorkflow();if('wfFooter'in d){const root=document.getElementById('workflow-card');const heading=root.querySelector('.card-title');heading.tabIndex=-1;heading.focus({preventScroll:true});root.scrollIntoView?.({block:'start',behavior:'smooth'});}return;}
   if(!el.closest('#workflow-card'))return;
   if(d.quickKind){const linked=workflow.tasks.find(task=>task.kind===d.quickKind&&task.sources.includes(d.quickSource));if(linked){linked.sources=linked.sources.filter(id=>id!==d.quickSource);if(!linked.sources.length&&linked.status==='planned'&&!linked.memo&&linked.target.mode==='unspecified')workflow.tasks=workflow.tasks.filter(task=>task!==linked);}else wfAddTask(d.quickKind,d.quickSource);}
   else if(d.directLink){const task=workflow.tasks.find(task=>task.id===d.directLink);if(task&&!task.sources.includes(d.source))task.sources.push(d.source);wfFinding(d.source).state='needed';}
