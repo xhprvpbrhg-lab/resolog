@@ -13,7 +13,7 @@ const click=selector=>{assert.ok(d.querySelector(selector),selector);d.querySele
 assert.deepEqual(errors,[]);
 run("clearForm(); document.querySelector('input[name=\"piano-type\"][value=\"grand\"]').checked=true;");
 input('[data-pitch="pitchBefore"]','442.2');
-const noWork=d.querySelector('[data-no-work="pitch"]');noWork.checked=true;noWork.dispatchEvent(new w.Event('change',{bubbles:true}));
+assert.equal(run("wfInspectionState('pitch')"),'unnecessary');
 input('[data-measure="hammerClose"][data-zone="mid"]','1.7');
 assert.equal(run('tuningData.pitchBefore'),'442.2');
 assert.equal(run('checklist.action.hammerClose.mm.mid.before'),'1.7');
@@ -93,17 +93,17 @@ run("clearForm();document.querySelector('input[name=\"piano-type\"][value=\"gran
 assert.equal(d.querySelectorAll('[data-decision]').length,0);
 assert.equal(run("wfInspectionState('eval.volume')"),'uninspected');
 input('[data-eval="volume"][data-phase="before"]','3');
-assert.equal(run("wfInspectionState('eval.volume')"),'inspected');
+assert.equal(run("wfInspectionState('eval.volume')"),'unnecessary');
 input('[data-measure="hammerClose"][data-zone="mid"]','0');
-assert.equal(run("wfInspectionState('action.hammerClose')"),'inspected');
+assert.equal(run("wfInspectionState('action.hammerClose')"),'unnecessary');
 input('[data-measure="hammerClose"][data-zone="mid"]','');
 assert.equal(run("wfInspectionState('action.hammerClose')"),'uninspected');
 input('[data-finding="pedal"]','checked quiet');
-assert.equal(run("wfInspectionState('pedal')"),'inspected');
+assert.equal(run("wfInspectionState('pedal')"),'unnecessary');
 input('[data-finding="pedal"]','');
 assert.equal(run("wfInspectionState('pedal')"),'uninspected');
 const confirmed=d.querySelector('[data-confirm-inspection="pedal"]');confirmed.checked=true;confirmed.dispatchEvent(new w.Event('change',{bubbles:true}));
-assert.equal(run("wfInspectionState('pedal')"),'inspected');
+assert.equal(run("wfInspectionState('pedal')"),'unnecessary');
 click('[data-quick-source="eval.touch"][data-quick-kind="needling"]');
 assert.equal(run("wfInspectionState('eval.touch')"),'needed');
 click('[data-quick-source="eval.touch"][data-quick-kind="needling"]');
@@ -136,8 +136,8 @@ const workDk=d.querySelector('[data-work-dk]');workDk.checked=true;workDk.dispat
 assert.equal(d.querySelector('#f-disklavier').checked,true);
 assert.equal(d.querySelector('#panel-final .dk-section').hidden,false);
 run('performSave(false);populateFormForEdit(records[0])');
-assert.equal(run("wfInspectionState('eval.volume')"),'inspected');
-assert.equal(run("wfInspectionState('pedal')"),'inspected');
+assert.equal(run("wfInspectionState('eval.volume')"),'unnecessary');
+assert.equal(run("wfInspectionState('pedal')"),'unnecessary');
 // Regulation measurements finish in Work, without a second form in Review.
 click('[data-wf-phase="work"]');
 input('#iw-action-hammerClose [data-zone="mid"][data-phase="after"]','1.2');
@@ -149,6 +149,22 @@ assert.ok(d.querySelector('#wf-body [data-finding="eval.touch"]'));
 run('performSave(false);populateFormForEdit(records[0])');
 click('[data-wf-phase="work"]');
 assert.equal(d.querySelector('#iw-action-hammerClose [data-zone="mid"][data-phase="after"]').value,'1.2');
+// Removing a plan falls back to no work only when an inspection remains.
+click('[data-wf-phase="inspection"]');
+input('[data-finding="unaCorda"]','Shift tone checked');
+assert.equal(run("wfInspectionState('unaCorda')"),'unnecessary');
+click('[data-quick-source="unaCorda"][data-quick-kind="filing"]');
+assert.equal(run("wfInspectionState('unaCorda')"),'needed');
+click('[data-quick-source="unaCorda"][data-quick-kind="filing"]');
+assert.equal(run("wfInspectionState('unaCorda')"),'unnecessary');
+input('[data-finding="unaCorda"]','');
+assert.equal(run("wfInspectionState('unaCorda')"),'uninspected');
+assert.equal(d.querySelectorAll('[data-no-work]').length,0);
+run("wfAddTask('filing','unaCorda').status='deferred';wfRefreshInspectionStates()");
+assert.equal(run("wfInspectionState('unaCorda')"),'deferred');
+// Previously explicit no-work decisions still count as confirmed when loaded.
+run("workflow.findings.unaCorda={state:'unnecessary',note:'',result:''};workflow.tasks=workflow.tasks.filter(t=>!t.sources.includes('unaCorda'));wfRefreshInspectionStates()");
+assert.equal(run("wfInspectionState('unaCorda')"),'unnecessary');
 assert.deepEqual(errors,[]);
 console.log('PASS: inspection decisions, shared measurements, task links, key ranges, completion filtering, save/edit, Markdown, legacy and upright');
 dom.window.close();

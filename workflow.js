@@ -46,10 +46,10 @@ function wfChanged() { markDirty(); }
 function wfSyncLegacy() { restoreChecklistUI(); restoreTuningUI(); restoreEvalForm(); }
 function wfInspectionState(id) {
   const f=wfFinding(id),present=value=>value!=null&&String(value).trim()!=='';
-  const linked=workflow.tasks.filter(task=>task.sources.includes(id));
+  const linked=workflow.tasks.filter(task=>task.sources.includes(id)||task.kind===id||(id==='pitch'&&task.kind==='tuning'));
   if(linked.some(task=>task.status==='planned'))return 'needed';
   if(linked.some(task=>task.status==='done'))return 'done';
-  if(f.state==='unnecessary')return 'unnecessary';
+  if(linked.length)return 'deferred';
   let entered=linked.length>0||present(f.note)||present(f.result)||f.sliderTouched||f.manualConfirmed;
   if(id==='pitch')entered ||= present(tuningData.pitchBefore)||present(tuningData.preCondition);
   if(id==='eval.touch')entered ||= present(touchData.inspectionDW)||present(touchData.inspectionUW);
@@ -57,10 +57,10 @@ function wfInspectionState(id) {
     const st=checklist.action?.[id.slice(7)];
     entered ||= present(st?.memo)||present(st?.before)||Object.values(st?.mm||{}).some(zone=>present(zone.before));
   }
-  return entered?'inspected':'uninspected';
+  return entered?'unnecessary':'uninspected';
 }
 function wfRefreshInspectionStates() {
-  wfSources().forEach(source=>{wfFinding(source.id).state=wfInspectionState(source.id);});
+  wfSources().forEach(source=>{const finding=wfFinding(source.id);if(finding.state==='unnecessary'&&!finding.stateDerived){finding.manualConfirmed=true;finding.legacyNoWorkDecision=true;}finding.state=wfInspectionState(source.id);finding.stateDerived=true;});
   document.querySelectorAll('[data-inspection-status]').forEach(el=>{
     const id=el.dataset.inspectionStatus,state=wfInspectionState(id);
     el.textContent=wfStates()[state];
@@ -70,7 +70,7 @@ function wfRefreshInspectionStates() {
 }
 function wfDecision(id) {
   const f=wfFinding(id),state=wfInspectionState(id);
-  return `<div class="wf-inspection-state"><span data-inspection-status="${id}" role="status">${wfStates()[state]}</span><label ${state!=='uninspected'&&!f.manualConfirmed?'hidden':''}><input type="checkbox" data-confirm-inspection="${id}" ${f.manualConfirmed?'checked':''}>${wfText('確認済み','Checked')}</label><details><summary>${wfText('判断を指定','Set decision')}</summary><label><input type="checkbox" data-no-work="${id}" ${f.state==='unnecessary'?'checked':''}>${wfText('今回は作業不要','No work needed this time')}</label></details></div>`;
+  return `<div class="wf-inspection-state"><span data-inspection-status="${id}" role="status">${wfStates()[state]}</span><label ${state!=='uninspected'&&!f.manualConfirmed?'hidden':''}><input type="checkbox" data-confirm-inspection="${id}" ${f.manualConfirmed?'checked':''}>${wfText('確認済み','Checked')}</label></div>`;
 }
 // Suggestions are shortcuts, not automatic diagnoses; every catalog item remains available.
 function wfRelevantKinds(id) {
@@ -317,7 +317,6 @@ document.addEventListener('change',e=>{
   if(d.taskComplete){const task=workflow.tasks.find(t=>t.id===d.taskComplete);task.status=el.checked?'done':'planned';if(task.kind.startsWith('action.'))checklist.action[task.kind.slice(7)].checked=el.checked;}
   if(d.startKind){wfAddTask(d.startKind).status='done';wfChanged();renderWorkflow();return;}
   if(d.confirmInspection)wfFinding(d.confirmInspection).manualConfirmed=el.checked;
-  if(d.noWork)wfFinding(d.noWork).state=el.checked?'unnecessary':'uninspected';
   if(d.overall)evaluation.overall=el.value;
   if(d.decision)wfFinding(d.decision).state=el.value;
   if(d.taskStatus){const task=workflow.tasks.find(t=>t.id===d.taskStatus);task.status=el.value;if(task.kind.startsWith('action.')){const st=checklist.action?.[task.kind.slice(7)];if(st)st.checked=el.value==='done';restoreChecklistUI();const cb=document.querySelector('#iw-action-'+task.kind.slice(7)+' input[type=checkbox]');if(cb){cb.checked=st?.checked||false;cb.closest('.checklist-item').classList.toggle('checked',cb.checked);}}}
@@ -368,7 +367,7 @@ buildSummaryItems=function(rec){
   const items=wfSummary(rec);if(!rec.workflow)return items;
   const completed=rec.workflow.tasks.filter(t=>t.status==='done');
   const taskKinds=new Set(completed.map(t=>t.kind));
-  const keepLegacyTuning=rec.workflow.legacy && !rec.workflow.tasks.some(t=>t.kind==='tuning') && rec.workflow.findings.pitch?.state!=='unnecessary';
+  const keepLegacyTuning=rec.workflow.legacy && !rec.workflow.tasks.some(t=>t.kind==='tuning') && !rec.workflow.findings.pitch?.legacyNoWorkDecision;
   const filtered=items.filter(i=>(!i.id.startsWith('tuning.')||keepLegacyTuning)&&!taskKinds.has(i.id));
   completed.forEach(task=>{
     const checklistItem=task.kind.startsWith('action.')?items.find(item=>item.id===task.kind):null;
