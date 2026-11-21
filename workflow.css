@@ -5,3 +5,5 @@
 .wf-work-pickers{display:flex;align-items:flex-start;gap:8px;margin:10px 0}.wf-work-pickers .wf-quick-tags{flex:1;min-width:0;margin:0}#workflow-card select.wf-other-select{flex:0 0 88px;width:88px;min-height:38px;margin-left:auto;padding:6px 4px;border-radius:18px}
 
 #workflow-card{scroll-margin-top:100px}.wf-bottom-navigation{display:flex;gap:10px;justify-content:space-between;border-top:1px solid var(--border);margin-top:20px;padding-top:16px}#workflow-card .wf-bottom-navigation button{min-height:44px;padding:10px 16px}#workflow-card .wf-bottom-navigation .wf-next-step{margin-left:auto;background:var(--primary);color:#fff;border-color:var(--primary)}
+
+.wf-climate-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wf-previous-value{display:block;font-size:11px;line-height:1.4;font-weight:400;color:var(--muted);opacity:.72;margin-top:3px}.wf-previous-weight{display:flex;gap:16px;font-size:11px;color:var(--muted)}
