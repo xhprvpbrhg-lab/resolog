@@ -115,6 +115,44 @@ function wfPlanControls(id) {
     ${linked.length?`<div class="wf-muted">${linked.map(task=>esc(wfTaskLabel(task))+' · '+wfStates()[task.status]).join(' / ')}</div>`:''}
     ${workflow.tasks.some(t=>!t.sources.includes(id))?`<details class="wf-existing"><summary>${wfText('記録済みの作業に関連づけ','Link a recorded task')}</summary>${workflow.tasks.filter(t=>!t.sources.includes(id)).map(task=>`<button type="button" data-direct-link="${task.id}" data-source="${id}">${esc(wfTaskText(task))}</button>`).join('')}</details>`:''}`;
 }
+// Workflow references use the same asset/date matching and after→before fallback as the checklist.
+function wfPreviousHint(key) {
+  return `<small class="wf-previous-value" data-wf-reference="${key}" hidden></small>`;
+}
+function wfPreviousValue(rec,key) {
+  const parts=key.split('.');
+  if(key==='pitch')return {...referenceValue({after:rec.tuningData?.pitchAfter,before:rec.tuningData?.pitchBefore}),unit:'Hz'};
+  if(parts[0]==='climate')return {value:rec.checklist?.inspection?.climate?.[parts[1]],unit:parts[1]==='temp'?'°C':'%'};
+  if(parts[0]==='eval')return {...referenceValue(rec.evaluation?.[parts[1]]),unit:''};
+  if(parts[0]==='measure'){
+    const st=rec.checklist?.action?.[parts[1]];
+    return {...referenceValue(parts[2]==='single'?st:st?.mm?.[parts[2]]),unit:'mm'};
+  }
+  if(parts[0]==='touch'){
+    const td=rec.touchData||{};
+    if(['DW','UW'].includes(parts[1]))return {...referenceValue({after:td['final'+parts[1]],before:td['inspection'+parts[1]]}),unit:'g'};
+    const present=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&Number.isFinite(Number(v));
+    const phase=['final','inspection'].find(p=>present(td[p+'DW'])&&present(td[p+'UW']));
+    if(!phase)return null;
+    const dw=Number(td[phase+'DW']),uw=Number(td[phase+'UW']);
+    if(dw<uw||uw<0)return null;
+    return {value:parts[1]==='balance'?(dw+uw)/2:(dw-uw)/2,unit:'g',phase:phase==='final'?'After':'Before'};
+  }
+  return null;
+}
+function wfRefreshPreviousValues() {
+  const rec=previousSession(document.getElementById('f-serial').value.trim());
+  document.querySelectorAll('[data-wf-reference]').forEach(el=>{
+    const result=rec?wfPreviousValue(rec,el.dataset.wfReference):null;
+    const present=result?.value!==undefined&&result?.value!==null&&String(result.value).trim()!=='';
+    el.hidden=!present;
+    if(el.parentElement.parentElement?.classList.contains('wf-previous-weight'))el.parentElement.hidden=!present;
+    el.textContent=present?wfText('前回 ','Prev ')+result.value+(result.unit?' '+result.unit:'')+(result.phase?wfText(result.phase==='After'?'（後）':'（前）',result.phase==='After'?' (after)':' (before)'):''):'';
+    el.title=present?wfText('前回の記録: ','Previous session: ')+fmtDate(rec.date):'';
+  });
+}
+const wfOriginalRefreshReferences=refreshPreviousReferences;
+refreshPreviousReferences=function(){wfOriginalRefreshReferences();wfRefreshPreviousValues();};
 function wfMeasurement(item,phase) {
   const st=checklist.action?.[item.id]||{};
   const zones=item.hasMm?['bass','mid','treble']:['single'];
@@ -123,28 +161,32 @@ function wfMeasurement(item,phase) {
     const before=z==='single'?st.before:st.mm?.[z]?.before;
     return wfField(z==='single'?'mm':({bass:t('zoneBass'),mid:t('zoneMid'),treble:t('zoneTreble')})[z],
       (phase==='after'?`<small>${wfText('前','Before')}: ${esc(before||'—')}</small>`:'')+
-      wfInput(val,`type="number" step="any" inputmode="decimal" placeholder="—" data-measure="${item.id}" data-zone="${z}" data-phase="${phase}" aria-label="${esc(iLabel(item))} ${z} ${phase}"`));
+      wfInput(val,`type="number" step="any" inputmode="decimal" placeholder="—" data-measure="${item.id}" data-zone="${z}" data-phase="${phase}" aria-label="${esc(iLabel(item))} ${z} ${phase}"`)+(phase==='before'?wfPreviousHint('measure.'+item.id+'.'+z):''));
   }).join('');
 }
 function wfRenderInspectionOrReview(review) {
   const phase=review?'after':'before';
   let html=`<p class="wf-muted">${review?wfText('作業前の状態と比較して結果を記録します。','Compare with the inspection and record results.'):wfText('測定や評価だけでも保存できます。必要な作業だけ予定に追加します。','Save observations without scheduling work. Add only the work you need.')}</p>`;
+  if(!review){
+    const climate=checklist.inspection?.climate||{};
+    html+=`<section class="wf-section"><h3>${wfText('温湿度','Temperature / humidity')}</h3><div class="wf-climate-fields">${wfField(wfText('温度 (°C)','Temperature (°C)'),wfInput(climate.temp,`type="number" step="any" inputmode="decimal" data-climate="temp"`)+wfPreviousHint('climate.temp'))}${wfField(wfText('湿度 (%)','Humidity (%)'),wfInput(climate.humidity,`type="number" min="0" max="100" step="1" inputmode="decimal" data-climate="humidity"`)+wfPreviousHint('climate.humidity'))}</div></section>`;
+  }
   html+=`<section class="wf-section"><h3>${wfText('ピッチ・調律状態','Pitch / tuning condition')}</h3>${review?`<p>${wfText('調律前','Before')}: ${esc(tuningData.pitchBefore||'—')} Hz</p>`:''}
-    ${wfField(review?wfText('調律後ピッチ (Hz)','Pitch after (Hz)'):wfText('調律前ピッチ (Hz)','Pitch before (Hz)'),wfInput(tuningData[review?'pitchAfter':'pitchBefore'],`type="number" step="any" inputmode="decimal" data-pitch="${review?'pitchAfter':'pitchBefore'}"`))}
+    ${wfField(review?wfText('調律後ピッチ (Hz)','Pitch after (Hz)'):wfText('調律前ピッチ (Hz)','Pitch before (Hz)'),wfInput(tuningData[review?'pitchAfter':'pitchBefore'],`type="number" step="any" inputmode="decimal" data-pitch="${review?'pitchAfter':'pitchBefore'}"`)+(review?'':wfPreviousHint('pitch')))}
     ${wfField(wfText('状態・コメント','Condition / comment'),wfInput(tuningData[review?'postComment':'preCondition'],`data-tuning="${review?'postComment':'preCondition'}"`))}
     ${review?'':wfDecision('pitch')+wfPlanControls('pitch')}</section>`;
   html+=`<section class="wf-section"><h3>${wfText('音・タッチ評価','Sound / touch')}</h3>`;
   [...getEvalSliders().map(i=>({id:'eval.'+i.key,...i})),{id:'unaCorda',label:'Una corda'}].forEach(s=>{
     const f=wfFinding(s.id),ev=s.key?evaluation[s.key]:null;
     html+=`<div class="wf-observation"><strong>${esc(s.label)}</strong>${s.hint?`<small class="wf-muted">${esc(s.hint)}</small>`:''}`;
-    if (ev) html+=`${review?`<span>${wfText('前','Before')}: ${ev.before??3} → </span>`:''}<output>${ev[phase]??3}</output>${wfInput(ev[phase]??3,`type="range" min="1" max="5" data-eval="${s.key}" data-phase="${phase}" aria-label="${esc(s.label)} ${phase}"`)}`;
+    if (ev) html+=`${review?`<span>${wfText('前','Before')}: ${ev.before??3} → </span>`:''}<output>${ev[phase]??3}</output>${wfInput(ev[phase]??3,`type="range" min="1" max="5" data-eval="${s.key}" data-phase="${phase}" aria-label="${esc(s.label)} ${phase}"`)}${review?'':wfPreviousHint('eval.'+s.key)}`;
     html+=wfField(review?wfText('結果・変化','Result / change'):wfText('点検時の状態','Initial condition'),wfInput(review?(s.key?evaluation[s.key]?.memo:f.result):f.note,`data-finding="${s.id}" data-field="${review?'result':'note'}"`));
     if(review && f.note) html+=`<p class="wf-muted">${wfText('点検','Inspection')}: ${esc(f.note)}</p>`;
     html+=review?wfLinksEditor(s.id):wfDecision(s.id)+wfPlanControls(s.id);
     html+='</div>';
   });
   html+='</section>';
-  html+=`<section class="wf-section"><h3>${wfText('ウェイト測定 (g)','Touch weight (g)')}</h3><div class="wf-measures">${['DW','UW'].map(k=>wfField(k,(review?`<small>${wfText('前','Before')}: ${esc(touchData['inspection'+k]||'—')}</small>`:'')+wfInput(touchData[(review?'final':'inspection')+k],`type="number" step="any" inputmode="decimal" data-touch="${(review?'final':'inspection')+k}"`))).join('')}</div><p id="wf-weight-result">${wfWeightText(review?'final':'inspection')}</p></section>`;
+  html+=`<section class="wf-section"><h3>${wfText('ウェイト測定 (g)','Touch weight (g)')}</h3><div class="wf-measures">${['DW','UW'].map(k=>wfField(k,(review?`<small>${wfText('前','Before')}: ${esc(touchData['inspection'+k]||'—')}</small>`:'')+wfInput(touchData[(review?'final':'inspection')+k],`type="number" step="any" inputmode="decimal" data-touch="${(review?'final':'inspection')+k}"`)+(review?'':wfPreviousHint('touch.'+k)))).join('')}</div><p id="wf-weight-result">${wfWeightText(review?'final':'inspection')}</p>${review?'':`<div class="wf-previous-weight"><span>BW ${wfPreviousHint('touch.balance')}</span><span>Friction ${wfPreviousHint('touch.friction')}</span></div>`}</section>`;
   if(!review) {
   html+=`<section class="wf-section"><h3>${wfText('整調寸法 (mm)','Regulation measurements (mm)')}</h3><div class="wf-muted">${wfText('入力しても実施済みにはなりません。','Entering measurements does not mark work completed.')}</div>`;
   wfMeasures().forEach(item=>{
@@ -294,6 +336,7 @@ function renderWorkflow() {
   opened.forEach(id=>root.querySelector(`[data-task="${id}"] details`)?.setAttribute('open',''));
   const dk=document.querySelector('#panel-final .dk-section')||document.querySelector('#wf-dk-mount .dk-section');
   if(dk&&workflowPhase==='review'&&isDK){const mount=document.createElement('section');mount.id='wf-dk-mount';mount.className='wf-section';root.querySelector('#wf-body').appendChild(mount);mount.appendChild(dk);updateDkVisibility();}
+  wfRefreshPreviousValues();
 }
 const wfRootInit=initChecklist;
 initChecklist=function(){wfRootInit();tuningData.pitchBefore='';tuningData.pitchAfter='';workflow=emptyWorkflow();workflowPhase='inspection';wfWorkScene='action';};
@@ -307,13 +350,14 @@ collectFormData=function(){wfRefreshInspectionStates();return {...wfCollect(),wo
 document.querySelector('#em-touch').closest('.card').classList.add('wf-original-evaluation');
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
-  if(!el.closest('#workflow-card')||(!d.touch&&!d.feedback&&!d.pitch&&!d.tuning&&!d.eval&&!d.finding&&!d.measure&&!d.taskMemo))return;
+  if(!el.closest('#workflow-card')||(!d.climate&&!d.touch&&!d.feedback&&!d.pitch&&!d.tuning&&!d.eval&&!d.finding&&!d.measure&&!d.taskMemo))return;
+  if(d.climate){checklist.inspection ||= {};checklist.inspection.climate ||= {checked:false,temp:'',humidity:''};checklist.inspection.climate[d.climate]=el.value;}
   if(d.touch){touchData[d.touch]=el.value;document.getElementById('wf-weight-result').textContent=wfWeightText(workflowPhase==='review'?'final':'inspection');}
   if(d.feedback)evaluation[d.feedback]=el.value;
   if(d.pitch)tuningData[d.pitch]=el.value;
   if(d.tuning)tuningData[d.tuning]=el.value;
   if(d.eval&&d.phase==='before')wfFinding('eval.'+d.eval).sliderTouched=true;
-  if(d.eval){evaluation[d.eval] ||= {before:3,after:3,memo:''};evaluation[d.eval][d.phase]=+el.value;el.previousElementSibling.textContent=el.value;}
+  if(d.eval){evaluation[d.eval] ||= {before:3,after:3,memo:''};evaluation[d.eval][d.phase]=+el.value;el.parentElement.querySelector('output').textContent=el.value;}
   if(d.finding){const f=wfFinding(d.finding);f[d.field]=el.value;if(d.field==='result'&&d.finding.startsWith('eval.'))evaluation[d.finding.slice(5)].memo=el.value;}
   if(d.measure){const st=checklist.action[d.measure];if(d.zone==='single')st[d.phase]=el.value;else st.mm[d.zone][d.phase]=el.value;}
   if(d.taskMemo){const task=workflow.tasks.find(t=>t.id===d.taskMemo);task.memo=el.value;if(task.kind.startsWith('action.'))checklist.action[task.kind.slice(7)].memo=el.value;}
